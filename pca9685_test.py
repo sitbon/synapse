@@ -3,9 +3,9 @@ import sys
 
 from edi2c import pca9685
 
-max_value = int(4096 * .9 * .5)
-steps = int(1 + max_value / 16.)
-
+max_value = 40 #int(4096 * .9 * .5)
+steps = int(1 + max_value / 2.)
+channel_scale_factor = 16
 
 def main_no_program(args):
     dev = pca9685.PCA9685()
@@ -46,7 +46,7 @@ def main(args):
     dev = pca9685.PCA9685()
     dev.reset(totem=False)
 
-    program = [[0.005, [[c, 0, 0] for c in range(pca9685.CHANNELS)]] for _ in range(steps)]
+    program = [[0.025, [[c, 0, 0] for c in range(pca9685.CHANNELS)]] for _ in range(steps)]
 
     # compress the range of 0-full from N/16 to 1 scaled to steps
     # 0 if step/steps < N/16

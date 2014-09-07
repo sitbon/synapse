@@ -44,6 +44,12 @@ ALLCALL = 0x01
 INVRT = 0x10
 OUTDRV = 0x04
 
+POLICY_DISALLOW_OPEN_DRAIN = True
+POLICY_DISALLOW_INVERT = True
+POLICY_DISALLOW_FULL_ON = True
+
+PWM_MAX_ON = 0
+PWM_MAX_OFF = 49
 
 class PCA9685:
     dev = None
@@ -53,7 +59,7 @@ class PCA9685:
         self.address = address
         self.debug = debug
 
-    def reset(self, invert=False, totem=True):
+    def reset(self, frequency=1000, invert=False, totem=True):
         if self.debug:
             print >>sys.stderr, "PCA9685: Reseting PCA9685 MODE1 (without SLEEP) and MODE2"
 
@@ -63,12 +69,19 @@ class PCA9685:
 
         if totem:
             mode2 |= OUTDRV
+        elif POLICY_DISALLOW_OPEN_DRAIN:
+            mode2 |= OUTDRV
+            print >>sys.stderr, "PCA9685: Policy disallows open drain"
 
         #if not invert:
         #    mode2 &= ~INVRT & 0xFF
         #else:
         if invert:
-            mode2 |= INVRT
+            if not POLICY_DISALLOW_INVERT:
+                mode2 |= INVRT
+            else:
+                mode2 &= ~INVRT & 0xFF
+                print >>sys.stderr, "PCA9685: Policy disallows invert"
 
         self.dev.write_8(MODE2, mode2)
         self.dev.write_8(MODE1, ALLCALL)
@@ -82,6 +95,10 @@ class PCA9685:
     def invert(self):
         mode2 = self.dev.read_u8(MODE2)
         invert = mode2 & INVRT == 0
+
+        if POLICY_DISALLOW_INVERT:
+            invert = False
+            print >>sys.stderr, "PCA9685: Policy disallows invert"
 
         if not invert:
             mode2 &= ~INVRT & 0xFF
@@ -123,15 +140,20 @@ class PCA9685:
 
         if on < 0:
             on = 0
-        elif on >= RESOLUTION:
-            on = RESOLUTION - 1
+        elif on > PWM_MAX_ON:
+            on = PWM_MAX_ON
 
         if off < 0:
             off = 0
-        elif off >= RESOLUTION:
-            off = RESOLUTION - 1
+        elif off > PWM_MAX_OFF:
+            off = PWM_MAX_OFF
 
         reg = LED_BASE_REGISTER[channel]
+
+        if on != 0 and POLICY_DISALLOW_SET_ON:
+            on = 0
+            print >>sys.stderr, "PCA9685: Policy disallows setting non-zero duty cycle ON time"
+
         self.dev.write_8(reg, on & 0xFF)
         self.dev.write_8(reg + 1, on >> 8)
         self.dev.write_8(reg + 2, off & 0xFF)
@@ -143,13 +165,20 @@ class PCA9685:
 
         if on < 0:
             on = 0
-        elif on >= RESOLUTION:
-            on = RESOLUTION - 1
+        elif on > PWM_MAX_ON:
+            on = PWM_MAX_ON
 
         if full:
-            on |= LED_FULL << 8
+            if POLICY_DISALLOW_FULL_ON:
+                print >>sys.stderr, "PCA9685: Policy disallows setting full-on bit"
+            else:
+                on |= LED_FULL << 8
 
         reg = LED_BASE_REGISTER[channel]
+
+        if on != 0 and POLICY_DISALLOW_SET_ON:
+            on = 0
+
         self.dev.write_8(reg, on & 0xFF)
         self.dev.write_8(reg + 1, on >> 8)
 
@@ -159,8 +188,8 @@ class PCA9685:
 
         if off < 0:
             off = 0
-        elif off >= RESOLUTION:
-            off = RESOLUTION - 1
+        elif off > PWM_MAX_OFF:
+            off = PWM_MAX_OFF
 
         if full:
             off |= LED_FULL << 8
@@ -208,19 +237,19 @@ class PCA9685:
             for (channel, on, off) in action:
                 if channel is None or channel < 0 or channel >= CHANNELS:
                     channel = -1
-            
+
                 if on < 0:
                     on = 0
-                elif on >= RESOLUTION:
-                    on = RESOLUTION - 1
+                elif on > PWM_MAX_ON:
+                    on = PWM_MAX_ON
 
                 if off < 0:
                     off = 0
-                elif off >= RESOLUTION:
-                    off = RESOLUTION - 1
-                
+                elif off > PWM_MAX_OFF:
+                    off = PWM_MAX_OFF
+
                 reg, current_on_l, current_on_h, current_off_l, current_off_h = current[channel]
-                
+
                 on_l = on & 0xFF
                 on_h = on >> 8
                 off_l = off & 0xFF
