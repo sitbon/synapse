@@ -296,7 +296,7 @@ def install_signal_handlers():
     def signal_handler(sig, frame):
             pwm = PCA9685()
             pwm.reset()
-            # sys.exit(0)
+            sys.exit(0)
 
     # TODO: Maybe be more specific?
 
