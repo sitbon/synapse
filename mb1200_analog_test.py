@@ -1,7 +1,7 @@
 import sys
 
 from edi2c import ads1x15
-from edi2c import ads1x15
+from edi2c import pca9685
 
 
 def main(args):

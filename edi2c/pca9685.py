@@ -6,6 +6,7 @@ Based almost entirely on:
 from time import time, sleep
 import math
 import sys
+import signal
 from i2c import I2CDevice
 
 # Registers/etc.
@@ -58,6 +59,7 @@ class PCA9685:
         self.dev = I2CDevice(address, debug=debug)
         self.address = address
         self.debug = debug
+        install_signal_handlers()
 
     def reset(self, frequency=1000, invert=False, totem=True):
         if self.debug:
@@ -91,6 +93,8 @@ class PCA9685:
         mode1 &= ~SLEEP & 0xFF  # wake up (reset sleep)
         self.dev.write_8(MODE1, mode1)
         sleep(0.005)  # wait for oscillator
+        
+        self.set_frequency(frequency)
 
     def invert(self):
         mode2 = self.dev.read_u8(MODE2)
@@ -279,3 +283,33 @@ class PCA9685:
             elif debug and duration > 0:
                 print >>sys.stderr, "PCA9685: Action specified %.3fms and took %.3fms to execute" \
                                     % (duration * 1000.0, elapsed * 1000.0)
+
+
+SIGNAL_HANDLER_INSTALLED = False
+
+def install_signal_handlers():
+    global SIGNAL_HANDLER_INSTALLED
+    
+    if SIGNAL_HANDLER_INSTALLED:
+        return
+    
+    def signal_handler(sig, frame):
+            pwm = PCA9685()
+            pwm.reset()
+            # sys.exit(0)
+
+    # TODO: Maybe be more specific?
+
+    #signal.signal(signal.SIGINT, signal_handler)
+
+    for i in [x for x in dir(signal) if x.startswith("SIG")]:
+        try:
+            signum = getattr(signal,i)
+            signal.signal(signum,signal_handler)
+        except RuntimeError,m:
+            # uncatchable
+            pass
+        except ValueError,m:
+            pass
+
+    SIGNAL_HANDLER_INSTALLED = True
