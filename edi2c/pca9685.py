@@ -6,7 +6,6 @@ Based almost entirely on:
 from time import time, sleep
 import math
 import sys
-import signal
 from i2c import I2CDevice
 
 # Registers/etc.
@@ -49,8 +48,9 @@ POLICY_DISALLOW_OPEN_DRAIN = True
 POLICY_DISALLOW_INVERT = True
 POLICY_DISALLOW_FULL_ON = True
 
+PWM_DEFAULT_FREQUENCY = 1500
 PWM_MAX_ON = 0
-PWM_MAX_OFF = 49
+PWM_MAX_OFF = 15 # 49
 
 class PCA9685:
     dev = None
@@ -59,7 +59,7 @@ class PCA9685:
         self.dev = I2CDevice(address, debug=debug)
         self.address = address
         self.debug = debug
-        install_signal_handlers()
+        install_cleanup_handlers()
 
     def reset(self, frequency=1000, invert=False, totem=True):
         if self.debug:
@@ -285,31 +285,32 @@ class PCA9685:
                                     % (duration * 1000.0, elapsed * 1000.0)
 
 
-SIGNAL_HANDLER_INSTALLED = False
+CLEANUP_HANDLERS_INSTALLED = False
 
-def install_signal_handlers():
-    global SIGNAL_HANDLER_INSTALLED
-    
-    if SIGNAL_HANDLER_INSTALLED:
+def install_cleanup_handlers():
+    import atexit, signal
+    global CLEANUP_HANDLERS_INSTALLED
+
+    if CLEANUP_HANDLERS_INSTALLED:
         return
+
+    def cleanup():
+        pwm = PCA9685()
+        pwm.reset()
+        sys.exit(0)
+
+    atexit.register(cleanup)
+
+    do_cleanup = lambda sig, frame: cleanup()
     
-    def signal_handler(sig, frame):
-            pwm = PCA9685()
-            pwm.reset()
-            sys.exit(0)
-
-    # TODO: Maybe be more specific?
-
-    #signal.signal(signal.SIGINT, signal_handler)
-
-    for i in [x for x in dir(signal) if x.startswith("SIG")]:
+    signals = [signal.SIGABRT, signal.SIGFPE, signal.SIGILL,
+               signal.SIGINT, signal.SIGSEGV, signal.SIGTERM,
+               signal.SIGKILL]
+    
+    for sig in signals:
         try:
-            signum = getattr(signal,i)
-            signal.signal(signum,signal_handler)
-        except RuntimeError,m:
-            # uncatchable
-            pass
-        except ValueError,m:
+            signal.signal(sig, do_cleanup)
+        except Exception, e:
             pass
 
-    SIGNAL_HANDLER_INSTALLED = True
+    CLEANUP_HANDLERS_INSTALLED = True
