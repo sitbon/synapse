@@ -1,6 +1,7 @@
 import sys
 from edi2c import pca9685 
 
+CHANNELS = pca9685.CHANNELS
 MAX_VALUE = pca9685.PWM_MAX_OFF
 
 pwm = pca9685.PCA9685()
@@ -64,10 +65,33 @@ def led_pulse(args):
     while True:
         pwm.run_program(program, debug=False)
 
+
+def led_proximity_simulation(args):
+    steps = MAX_VALUE
+    length = 2.66
+    program = [[(length / 2.0) / steps, [[c, 0, 0] for c in range(CHANNELS)]] for _ in range(steps)]
+
+    # compress the range of 0-full from N/16 to 1 scaled to steps
+    # 0 if step/steps < N/16
+    # (steps - (N/16)*steps (1 - N/16)
+    
+    for channel in range(CHANNELS):
+        channel_scaled = channel / float(CHANNELS)
+        for step in range(steps):
+            step_scaled = step / float(steps - 1)
+            if step_scaled >= channel_scaled:
+                program[step][1][channel] = channel, 0, int(round(MAX_VALUE * (step_scaled - channel_scaled) / (1 - channel_scaled)))
+
+    program += list(reversed(program))[1:]
+    pwm.run_program(program, debug=False)
+
+
 programs = {
         "portray": led_portray,
-        "pulse": led_pulse
+        "pulse": led_pulse,
+        "proximity_simulation": led_proximity_simulation
     }
+
 
 def run_program(name, args):
     program_handler = programs.get(name, None)
