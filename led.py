@@ -91,5 +91,4 @@ if __name__ == '__main__':
     else:
         args = sys.argv[1:]
         name = args[0]
-        install_signal_handlers()
         run_program(name, args[1:])
