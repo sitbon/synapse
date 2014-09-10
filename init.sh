@@ -30,7 +30,8 @@ init_i2c6() {
 
 init_dress_py() {
     echo $(date): Initializing >> /home/root/run-dress-py.log
-    /home/root/run-dress-py.sh &>>/home/root/run-dress-py.log
+    cd /home/root/fashion
+    python dress.py &>>/home/root/run-dress-py.log
 }
 
 init_buttond() {
