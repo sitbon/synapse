@@ -47,10 +47,7 @@ def led_portray(args):
     pwm.run_program(program, debug=False)
 
 
-def led_pulse(args):
-    HIGH = MAX_VALUE
-    LOW = int(HIGH * .333)
-    MEDIUM = int(HIGH * .666)
+def led_pulse(amplitude=MAX_VALUE):
     PULSE_INTERVAL = 1.0
     RESOLUTION = int(MAX_VALUE * .15)
     
@@ -68,7 +65,7 @@ def led_pulse(args):
             index += RESOLUTION
         return pulse_program + list(reversed(pulse_program))[1:]
 
-    pulse_series_program = generate_pulse(HIGH, 1)
+    pulse_series_program = generate_pulse(amplitude, 1.5)
 
     program = pulse_series_program
 
@@ -104,6 +101,17 @@ def led_proximity_simulation_sequenced(args):
 
     program = ramp_series_program
     pwm.run_program(program, debug=False)
+    
+    lowr = generate_ramp(0, 13, 1.25)
+    lowr += list(reversed(lowr))[1:]
+    
+    #highr = generate_ramp(0, MEDIUM, 1.25)
+    #highr += list(reversed(highr))[1:]
+    #pwm.run_program(program, debug=False)
+    
+    while True:
+        pwm.run_program(lowr, debug=False)
+    
 
 
 def led_proximity_simulation(args):
