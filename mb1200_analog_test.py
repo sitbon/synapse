@@ -30,7 +30,7 @@ def main(args):
 
     while True:
         #vcc = adc.read_single_ended(1, pga=6144, sps=128)
-        distance = adc.read_single_ended(0, pga=1024, sps=1600) * 1024 / 5000.
+        distance = adc.read_single_ended(0, pga=1024, sps=1600) * 1024 / 3300.
         readings.append(distance)
 
         # Median filter
@@ -41,7 +41,7 @@ def main(args):
         else:
             continue
 
-        print int(round(distance)), "cm"  # , int(round(vcc)), "mv"
+        #print int(round(distance)), "cm"  # , int(round(vcc)), "mv"
 
         #if abs(distance2 - distance) > 40:
         #    print "[reject]"
@@ -51,9 +51,10 @@ def main(args):
         #    distance = (distance + distance2) / 2.
         #    print
 
-        on = min(max(distance - 40, 0) / 170., 1.)
+        on = 1 - min(max(distance - 20, 0) / 110., 1.)
         step = int(round((len(program) - 1) * on))
-        pwm.run_program(program[step:step+1])
+        print int(round(distance)), "cm" , on
+        #pwm.run_program(program[step:step+1])
 
 if __name__ == '__main__':
     args = sys.argv[1:]
