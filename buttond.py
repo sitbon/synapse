@@ -62,6 +62,7 @@ def main():
 
         except Exception, e:
             print >>sys.stderr, "BUTTON:", str(e)
+            sleep(3)
             continue
 
 
