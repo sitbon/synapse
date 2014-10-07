@@ -90,9 +90,6 @@ class Dress(cmd.Cmd):
         self.nbsr_proximity = NonBlockingStreamReader(self.sp_proximity.stdout)
         self.sp_proximity.stdin.write('\n')
 
-    def do_monitor(self, line):
-        """Monitors all sensor output"""
-
     def do_monitor(self, line):                                                                                        
         """Monitors all sensors"""                                                                                     
         #open connection to database for web server                                                                    
