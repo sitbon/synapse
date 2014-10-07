@@ -78,7 +78,7 @@ class Dress(cmd.Cmd):
                                         stdout = subprocess.PIPE, 
                                         stderr = subprocess.PIPE, shell = False)
         self.nbsr_voice = NonBlockingStreamReader(self.sp_voice.stdout)
-        self.sp_voice.stdin.write('\n')
+        self.sp_vocie.stdin.write('\n')
 
     def do_start_proximity(self, line):
         """start tracking people using proximity"""
@@ -89,6 +89,9 @@ class Dress(cmd.Cmd):
 
         self.nbsr_proximity = NonBlockingStreamReader(self.sp_proximity.stdout)
         self.sp_proximity.stdin.write('\n')
+
+    def do_monitor(self, line):
+        """Monitors all sensor output"""
 
     def do_monitor(self, line):                                                                                        
         """Monitors all sensors"""                                                                                     
@@ -142,7 +145,7 @@ class Dress(cmd.Cmd):
         #c.close()                                                                                                     
 if __name__ == '__main__':                                                                                             
     dress = Dress()                                                                                                    
-    dress.do_start_voice(None)                                                                                        
+    dress.do_start_easyvr(None)                                                                                        
     dress.do_start_heartrate(None)                                                                                     
     dress.do_start_proximity(None)                                                                                     
     dress.do_monitor(None)                                                                                             
