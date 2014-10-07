@@ -8,7 +8,7 @@ def main():
         for d in pkt:
             if isinstance(d, thinkgear.ThinkGearAttentionData):
                 print d.value
-	        sys.stdout.flush()
+                sys.stdout.flush()
 
 if __name__ == '__main__':
     main()
