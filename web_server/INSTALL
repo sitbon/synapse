@@ -1,0 +1,20 @@
+Installation instructions:
+
+DEPENDENCIES
+============
+
+- SQLite must be insalled on the Edison. To do so, download from http://www.sqlite.org/. Shell commands './configure; make; make install' will install everything to the Edison.
+
+- Pysqlite2 must also be installed on the Edison. Download from https://pypi.python.org/pypi/pysqlite. Shell commands 'python setup.py build' followed by 'python setup.py install' will install everything to the Edison.
+
+
+INITIAL SETUP
+=============
+
+- If this is the first time installing the web server, shell command 'python create_db.py'.
+
+
+RUNNING THE WEB SERVER
+======================
+
+- Run shell command 'python web_server.py'.
