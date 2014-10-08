@@ -50,7 +50,7 @@ POLICY_DISALLOW_FULL_ON = True
 
 PWM_DEFAULT_FREQUENCY = 1500
 PWM_MAX_ON = 0
-PWM_MAX_OFF = 15 # 49
+PWM_MAX_OFF = 100 #15 # 49
 
 class PCA9685:
     dev = None
@@ -61,7 +61,7 @@ class PCA9685:
         self.debug = debug
         install_cleanup_handlers()
 
-    def reset(self, frequency=1000, invert=False, totem=True):
+    def reset(self, frequency=PWM_DEFAULT_FREQUENCY, invert=False, totem=True):
         if self.debug:
             print >>sys.stderr, "PCA9685: Reseting PCA9685 MODE1 (without SLEEP) and MODE2"
 
@@ -235,7 +235,12 @@ class PCA9685:
             for reg in LED_BASE_REGISTER
         ]
 
-        for (duration, action) in program:
+        for (c_duration, action) in program:
+            if callable(c_duration):
+                duration = c_duration()
+            else:
+                duration = c_duration
+
             ts = time()
 
             for (channel, on, off) in action:

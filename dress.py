@@ -70,6 +70,7 @@ class Dress(cmd.Cmd):
                                            stdin = subprocess.PIPE,
                                            stdout = subprocess.PIPE,
                                            stderr = subprocess.PIPE, shell = False)
+        self.nbsr_mindwave = NonBlockingStreamReader(self.sp_mindwave.stdout)
 
     def do_start_voice(self, line):
         """start listening for voice commands"""
@@ -98,8 +99,6 @@ class Dress(cmd.Cmd):
         #open connection to database for web server                                                                    
         #db = sqlite3.connect('web_server/./dress.db')                                                                 
         #c = db.cursor()                                                                                               
-                                                                                                                       
-        led_lights = self.activate_lights('ekg')                                                                       
                                                                                                                        
         while True:                                                                                                    
             if self.sp_voice is not None:                                                                              
@@ -144,9 +143,9 @@ class Dress(cmd.Cmd):
                                                                                                                        
         #c.close()                                                                                                     
 if __name__ == '__main__':                                                                                             
-    dress = Dress()                                                                                                    
-    dress.do_start_easyvr(None)                                                                                        
-    dress.do_start_heartrate(None)                                                                                     
-    dress.do_start_proximity(None)                                                                                     
-    dress.do_monitor(None)                                                                                             
-    #Dress().cmdloop()
+    #dress = Dress()                                                                                                    
+    #dress.do_start_easyvr(None)                                                                                        
+    #dress.do_start_heartrate(None)                                                                                     
+    #dress.do_start_proximity(None)                                                                                     
+    #dress.do_monitor(None)                                                                                             
+    Dress().cmdloop()
