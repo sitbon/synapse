@@ -7,6 +7,7 @@ NOT IMPLEMENTED: Conversion ready pin, page 15 datasheet.
 """
 import time
 import sys
+import flock
 from i2c import I2CDevice
 
 # IC Identifiers
@@ -117,11 +118,13 @@ PGA_ADS1X15 = {
 
 class ADS1X15:
     dev = None
+    lock = None
 
     def __init__(self, address=0x48, ic=IC_ADS1115, debug=False):
         self.dev = I2CDevice(address, debug=debug)
         self.address = address
         self.debug = debug
+        self.lock = flock.Flock('/tmp/ADS1X15.lock')
 
         # Make sure the IC specified is valid
         if (ic != IC_ADS1015) and (ic != IC_ADS1115):
@@ -157,59 +160,65 @@ class ADS1X15:
             ADS1015_REG_CONFIG_CMODE_TRAD |
             ADS1015_REG_CONFIG_MODE_SINGLE
         )
+        
+        try:
+            self.lock.acquire()
 
-        # Set sample per seconds, defaults to 250sps
-        # If sps is in the dictionary (defined in init) it returns the value of the constant
-        # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
-        if self.ic == IC_ADS1015:
-            config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
-        else:
-            if (sps not in SPS_ADS1115) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 6144mV" % sps
-            config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
-
-        # Set PGA/voltage range, defaults to +-6.144V
-        if (pga not in PGA_ADS1X15) and self.debug:
-            print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
-        config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
-        self.pga = pga
-
-        # Set the channel to be converted
-        if channel == 3:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_3
-        elif channel == 2:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_2
-        elif channel == 1:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_1
-        else:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_0
-
-        # Set 'start single-conversion' bit
-        config |= ADS1015_REG_CONFIG_OS_SINGLE
-
-        # Write config register to the ADC
-        config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
-
-        # Wait for the ADC conversion to complete
-        # The minimum delay depends on the sps: delay >= 1/sps
-        # We add 0.1ms to be sure
-        delay = 1.0 / sps + 0.0001
-        time.sleep(delay)
-
-        # Read the conversion results
-        result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
-        if self.ic == IC_ADS1015:
-            # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
-            return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
-        else:
-            # Return a mV value for the ADS1115
-            # (Take signed values into account as well)
-            val = (result[0] << 8) | result[1]
-            if val > 0x7FFF:
-                return (val - 0xFFFF) * pga / 32768.0
+            # Set sample per seconds, defaults to 250sps
+            # If sps is in the dictionary (defined in init) it returns the value of the constant
+            # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
+            if self.ic == IC_ADS1015:
+                config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
             else:
-                return ((result[0] << 8) | result[1]) * pga / 32768.0
+                if (sps not in SPS_ADS1115) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 6144mV" % sps
+                config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+
+            # Set PGA/voltage range, defaults to +-6.144V
+            if (pga not in PGA_ADS1X15) and self.debug:
+                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
+            config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
+            self.pga = pga
+
+            # Set the channel to be converted
+            if channel == 3:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_3
+            elif channel == 2:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_2
+            elif channel == 1:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_1
+            else:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_0
+
+            # Set 'start single-conversion' bit
+            config |= ADS1015_REG_CONFIG_OS_SINGLE
+
+            # Write config register to the ADC
+            config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+            # Wait for the ADC conversion to complete
+            # The minimum delay depends on the sps: delay >= 1/sps
+            # We add 0.1ms to be sure
+            delay = 1.0 / sps + 0.0001
+            time.sleep(delay)
+
+            # Read the conversion results
+            result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
+            if self.ic == IC_ADS1015:
+                # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
+                return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
+            else:
+                # Return a mV value for the ADS1115
+                # (Take signed values into account as well)
+                val = (result[0] << 8) | result[1]
+                if val > 0x7FFF:
+                    return (val - 0xFFFF) * pga / 32768.0
+                else:
+                    return ((result[0] << 8) | result[1]) * pga / 32768.0
+        
+        finally:
+            self.lock.release()
 
     def read_differential(self, chp=0, chn=1, pga=6144, sps=250):
         """Gets a differential ADC reading from channels chP and chN in mV.
@@ -243,48 +252,54 @@ class ADS1X15:
         else:
             raise ValueError("ADS1X15: Invalid channels specified: %d, %d" % (chp, chn))
 
-        # Set sample per seconds, defaults to 250sps
-        # If sps is in the dictionary (defined in init()) it returns the value of the constant
-        # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
-        if self.ic == IC_ADS1015:
-            config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
-        else:
-            if (sps not in SPS_ADS1115) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
-            config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+        try:
+            self.lock.acquire()
 
-        # Set PGA/voltage range, defaults to +-6.144V
-        if (pga not in PGA_ADS1X15) and self.debug:
-            print "ADS1x15: Invalid pga specified: %d, using 6144mV" % sps
-        config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
-        self.pga = pga
-
-        # Set 'start single-conversion' bit
-        config |= ADS1015_REG_CONFIG_OS_SINGLE
-
-        # Write config register to the ADC
-        config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
-
-        # Wait for the ADC conversion to complete
-        # The minimum delay depends on the sps: delay >= 1/sps
-        # We add 0.1ms to be sure
-        delay = 1.0 / sps + 0.0001
-        time.sleep(delay)
-
-        # Read the conversion results
-        result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
-        if self.ic == IC_ADS1015:
-            # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
-            return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
-        else:
-            # Return a mV value for the ADS1115
-            # (Take signed values into account as well)
-            val = (result[0] << 8) | result[1]
-            if val > 0x7FFF:
-                return (val - 0xFFFF) * pga / 32768.0
+            # Set sample per seconds, defaults to 250sps
+            # If sps is in the dictionary (defined in init()) it returns the value of the constant
+            # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
+            if self.ic == IC_ADS1015:
+                config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
             else:
-                return ((result[0] << 8) | result[1]) * pga / 32768.0
+                if (sps not in SPS_ADS1115) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
+                config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+
+            # Set PGA/voltage range, defaults to +-6.144V
+            if (pga not in PGA_ADS1X15) and self.debug:
+                print "ADS1x15: Invalid pga specified: %d, using 6144mV" % sps
+            config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
+            self.pga = pga
+
+            # Set 'start single-conversion' bit
+            config |= ADS1015_REG_CONFIG_OS_SINGLE
+
+            # Write config register to the ADC
+            config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+            # Wait for the ADC conversion to complete
+            # The minimum delay depends on the sps: delay >= 1/sps
+            # We add 0.1ms to be sure
+            delay = 1.0 / sps + 0.0001
+            time.sleep(delay)
+
+            # Read the conversion results
+            result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
+            if self.ic == IC_ADS1015:
+                # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
+                return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
+            else:
+                # Return a mV value for the ADS1115
+                # (Take signed values into account as well)
+                val = (result[0] << 8) | result[1]
+                if val > 0x7FFF:
+                    return (val - 0xFFFF) * pga / 32768.0
+                else:
+                    return ((result[0] << 8) | result[1]) * pga / 32768.0
+                
+        finally:
+            self.lock.release()
 
     def read_differential_01(self, pga=6144, sps=250):
         """Gets a differential ADC reading from channels 0 and 1 in mV.
@@ -354,61 +369,67 @@ class ADS1X15:
             ADS1015_REG_CONFIG_MODE_CONTIN
         )
 
-        # Set sample per seconds, defaults to 250sps
-        # If sps is in the dictionary (defined in init()) it returns the value of the constant
-        # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
-        if self.ic == IC_ADS1015:
-            config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
-        else:
-            if (sps not in SPS_ADS1115) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
-            config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+        try:
+            self.lock.acquire()
 
-        # Set PGA/voltage range, defaults to +-6.144V
-        if (pga not in PGA_ADS1X15) and self.debug:
-            print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
-        config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
-        self.pga = pga
-
-        # Set the channel to be converted
-        if channel == 3:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_3
-        elif channel == 2:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_2
-        elif channel == 1:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_1
-        else:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_0
-
-            # Set 'start single-conversion' bit to begin conversions
-        # No need to change this for continuous mode!
-        config |= ADS1015_REG_CONFIG_OS_SINGLE
-
-        # Write config register to the ADC
-        # Once we write the ADC will convert continously
-        # we can read the next values using getLastConversionResult
-        config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
-
-        # Wait for the ADC conversion to complete
-        # The minimum delay depends on the sps: delay >= 1/sps
-        # We add 0.5ms to be sure
-        delay = 1.0 / sps + 0.0005
-        time.sleep(delay)
-
-        # Read the conversion results
-        result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
-        if self.ic == IC_ADS1015:
-            # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
-            return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
-        else:
-            # Return a mV value for the ADS1115
-            # (Take signed values into account as well)
-            val = (result[0] << 8) | result[1]
-            if val > 0x7FFF:
-                return (val - 0xFFFF) * pga / 32768.0
+            # Set sample per seconds, defaults to 250sps
+            # If sps is in the dictionary (defined in init()) it returns the value of the constant
+            # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
+            if self.ic == IC_ADS1015:
+                config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
             else:
-                return ((result[0] << 8) | result[1]) * pga / 32768.0
+                if (sps not in SPS_ADS1115) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
+                config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+
+            # Set PGA/voltage range, defaults to +-6.144V
+            if (pga not in PGA_ADS1X15) and self.debug:
+                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
+            config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
+            self.pga = pga
+
+            # Set the channel to be converted
+            if channel == 3:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_3
+            elif channel == 2:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_2
+            elif channel == 1:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_1
+            else:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_0
+
+                # Set 'start single-conversion' bit to begin conversions
+            # No need to change this for continuous mode!
+            config |= ADS1015_REG_CONFIG_OS_SINGLE
+
+            # Write config register to the ADC
+            # Once we write the ADC will convert continously
+            # we can read the next values using getLastConversionResult
+            config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+            # Wait for the ADC conversion to complete
+            # The minimum delay depends on the sps: delay >= 1/sps
+            # We add 0.5ms to be sure
+            delay = 1.0 / sps + 0.0005
+            time.sleep(delay)
+
+            # Read the conversion results
+            result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
+            if self.ic == IC_ADS1015:
+                # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
+                return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
+            else:
+                # Return a mV value for the ADS1115
+                # (Take signed values into account as well)
+                val = (result[0] << 8) | result[1]
+                if val > 0x7FFF:
+                    return (val - 0xFFFF) * pga / 32768.0
+                else:
+                    return ((result[0] << 8) | result[1]) * pga / 32768.0
+
+        finally:
+            self.lock.release()
 
     def start_continuous_differential_conversion(self, chp=0, chn=1, pga=6144, sps=250):
         """Starts the continuous differential conversion mode and returns the first ADC reading
@@ -432,63 +453,70 @@ class ADS1X15:
             ADS1015_REG_CONFIG_MODE_CONTIN
         )
 
-        # Set sample per seconds, defaults to 250sps
-        # If sps is in the dictionary (defined in init()) it returns the value of the constant
-        # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
-        if self.ic == IC_ADS1015:
-            config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
-        else:
-            if (sps not in SPS_ADS1115) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
-            config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+        try:
+            self.lock.acquire()
 
-        # Set PGA/voltage range, defaults to +-6.144V
-        if (pga not in PGA_ADS1X15) and self.debug:
-            print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
-        config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
-        self.pga = pga
-
-        # Set channels
-        if chp == 0 and chn == 1:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_0_1
-        elif chp == 0 and chn == 3:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_0_3
-        elif chp == 2 and chn == 3:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_2_3
-        elif chp == 1 and chn == 3:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_1_3
-        else:
-            raise ValueError("ADS1X15: Invalid channels specified: %d, %d" % (chp, chn))
-
-        # Set 'start single-conversion' bit to begin conversions
-        # No need to change this for continuous mode!
-        config |= ADS1015_REG_CONFIG_OS_SINGLE
-
-        # Write config register to the ADC
-        # Once we write the ADC will convert continously
-        # we can read the next values using getLastConversionResult
-        config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
-
-        # Wait for the ADC conversion to complete
-        # The minimum delay depends on the sps: delay >= 1/sps
-        # We add 0.5ms to be sure
-        delay = 1.0 / sps + 0.0005
-        time.sleep(delay)
-
-        # Read the conversion results
-        result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
-        if self.ic == IC_ADS1015:
-            # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
-            return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
-        else:
-            # Return a mV value for the ADS1115
-            # (Take signed values into account as well)
-            val = (result[0] << 8) | result[1]
-            if val > 0x7FFF:
-                return (val - 0xFFFF) * pga / 32768.0
+            # Set sample per seconds, defaults to 250sps
+            # If sps is in the dictionary (defined in init()) it returns the value of the constant
+            # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
+            if self.ic == IC_ADS1015:
+                config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
             else:
-                return ((result[0] << 8) | result[1]) * pga / 32768.0
+                if (sps not in SPS_ADS1115) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
+                config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+
+            # Set PGA/voltage range, defaults to +-6.144V
+            if (pga not in PGA_ADS1X15) and self.debug:
+                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % sps
+            config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
+            self.pga = pga
+
+            # Set channels
+            if chp == 0 and chn == 1:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_0_1
+            elif chp == 0 and chn == 3:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_0_3
+            elif chp == 2 and chn == 3:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_2_3
+            elif chp == 1 and chn == 3:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_1_3
+            else:
+                raise ValueError("ADS1X15: Invalid channels specified: %d, %d" % (chp, chn))
+
+            # Set 'start single-conversion' bit to begin conversions
+            # No need to change this for continuous mode!
+            config |= ADS1015_REG_CONFIG_OS_SINGLE
+
+            # Write config register to the ADC
+            # Once we write the ADC will convert continously
+            # we can read the next values using getLastConversionResult
+            config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+            # Wait for the ADC conversion to complete
+            # The minimum delay depends on the sps: delay >= 1/sps
+            # We add 0.5ms to be sure
+            delay = 1.0 / sps + 0.0005
+            time.sleep(delay)
+
+            # Read the conversion results
+            result = self.dev.read_list(ADS1015_REG_POINTER_CONVERT, 2)
+            if self.ic == IC_ADS1015:
+                # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
+                return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
+            else:
+                # Return a mV value for the ADS1115
+                # (Take signed values into account as well)
+                val = (result[0] << 8) | result[1]
+                if val > 0x7FFF:
+                    return (val - 0xFFFF) * pga / 32768.0
+                else:
+                    return ((result[0] << 8) | result[1]) * pga / 32768.0
+
+        except:
+            self.lock.release()
+            raise
 
     def stop_continuous_conversion(self):
         """Stops the ADC's conversions when in continuous mode and resets the
@@ -499,7 +527,12 @@ class ADS1X15:
         # enter power-off mode.
         config = 0x8583  # Page 18 datasheet.
         config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+        try:
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+        finally:
+            self.lock.release()
+
         return True
 
     def get_last_conversion_results(self):
@@ -566,58 +599,65 @@ class ADS1X15:
         else:
             config |= ADS1015_REG_CONFIG_CQUE_1CONV
 
-        # Set sample per seconds, defaults to 250sps
-        # If sps is in the dictionary (defined in init()) it returns the value of the constant
-        # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
-        if self.ic == IC_ADS1015:
-            if (sps not in SPS_ADS1015) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 1600sps" % sps
-            config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
-        else:
-            if (sps not in SPS_ADS1115) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 250sps" % sps
-            config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+        try:
+            self.lock.acquire()
 
-        # Set PGA/voltage range, defaults to +-6.144V
-        if (pga not in PGA_ADS1X15) and self.debug:
-            print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % pga
-        config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
-        self.pga = pga
+            # Set sample per seconds, defaults to 250sps
+            # If sps is in the dictionary (defined in init()) it returns the value of the constant
+            # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
+            if self.ic == IC_ADS1015:
+                if (sps not in SPS_ADS1015) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 1600sps" % sps
+                config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
+            else:
+                if (sps not in SPS_ADS1115) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 250sps" % sps
+                config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
 
-        # Set the channel to be converted
-        if channel == 3:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_3
-        elif channel == 2:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_2
-        elif channel == 1:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_1
-        else:
-            config |= ADS1015_REG_CONFIG_MUX_SINGLE_0
+            # Set PGA/voltage range, defaults to +-6.144V
+            if (pga not in PGA_ADS1X15) and self.debug:
+                print >>sys.stderr, "ADS1X15: Invalid pga specified: %d, using 6144mV" % pga
+            config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
+            self.pga = pga
 
-        # Set 'start single-conversion' bit to begin conversions
-        config |= ADS1015_REG_CONFIG_OS_SINGLE
+            # Set the channel to be converted
+            if channel == 3:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_3
+            elif channel == 2:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_2
+            elif channel == 1:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_1
+            else:
+                config |= ADS1015_REG_CONFIG_MUX_SINGLE_0
 
-        # Write threshold high and low registers to the ADC
-        # V_digital = (2^(n-1)-1)/pga*V_analog
-        if self.ic == IC_ADS1015:
-            threshold_word_high = int(threshold_high * (2048.0 / pga))
-        else:
-            threshold_word_high = int(threshold_high * (32767.0 / pga))
-        threshold_bytes = [(threshold_word_high >> 8) & 0xFF, threshold_word_high & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_HITHRESH, threshold_bytes)
+            # Set 'start single-conversion' bit to begin conversions
+            config |= ADS1015_REG_CONFIG_OS_SINGLE
 
-        if self.ic == IC_ADS1015:
-            threshold_low_word = int(threshold_low * (2048.0 / pga))
-        else:
-            threshold_low_word = int(threshold_low * (32767.0 / pga))
-        threshold_low_bytes = [(threshold_low_word >> 8) & 0xFF, threshold_low_word & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_LOWTHRESH, threshold_low_bytes)
+            # Write threshold high and low registers to the ADC
+            # V_digital = (2^(n-1)-1)/pga*V_analog
+            if self.ic == IC_ADS1015:
+                threshold_word_high = int(threshold_high * (2048.0 / pga))
+            else:
+                threshold_word_high = int(threshold_high * (32767.0 / pga))
+            threshold_bytes = [(threshold_word_high >> 8) & 0xFF, threshold_word_high & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_HITHRESH, threshold_bytes)
 
-        # Write config register to the ADC
-        # Once we write the ADC will convert continously and alert when things happen,
-        # we can read the converted values using getLastConversionResult
-        config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+            if self.ic == IC_ADS1015:
+                threshold_low_word = int(threshold_low * (2048.0 / pga))
+            else:
+                threshold_low_word = int(threshold_low * (32767.0 / pga))
+            threshold_low_bytes = [(threshold_low_word >> 8) & 0xFF, threshold_low_word & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_LOWTHRESH, threshold_low_bytes)
+
+            # Write config register to the ADC
+            # Once we write the ADC will convert continously and alert when things happen,
+            # we can read the converted values using getLastConversionResult
+            config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+        except:
+            self.lock.release()
+            raise
 
     def start_differential_comparator(self, chp, chn, threshold_high, threshold_low,
                                       pga=6144, sps=250, active_low=True, traditional_mode=True,
@@ -663,57 +703,64 @@ class ADS1X15:
         else:
             config |= ADS1015_REG_CONFIG_CQUE_1CONV
 
-        # Set sample per seconds, defaults to 250sps
-        # If sps is in the dictionary (defined in init()) it returns the value of the constant
-        # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
-        if self.ic == IC_ADS1015:
-            if (sps not in SPS_ADS1015) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 1600sps" % sps
-            config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
-        else:
-            if (sps not in SPS_ADS1115) and self.debug:
-                print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 250sps" % sps
-            config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
+        try:
+            self.lock.acquire()
 
-        # Set PGA/voltage range, defaults to +-6.144V
-        if (pga not in PGA_ADS1X15) and self.debug:
-            print >>sys.stderr, "ADS1x15: Invalid pga specified: %d, using 6144mV" % pga
-        config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
-        self.pga = pga
+            # Set sample per seconds, defaults to 250sps
+            # If sps is in the dictionary (defined in init()) it returns the value of the constant
+            # othewise it returns the value for 250sps. This saves a lot of if/elif/else code!
+            if self.ic == IC_ADS1015:
+                if (sps not in SPS_ADS1015) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 1600sps" % sps
+                config |= SPS_ADS1015.setdefault(sps, ADS1015_REG_CONFIG_DR_1600SPS)
+            else:
+                if (sps not in SPS_ADS1115) and self.debug:
+                    print >>sys.stderr, "ADS1X15: Invalid sps specified: %d, using 250sps" % sps
+                config |= SPS_ADS1115.setdefault(sps, ADS1115_REG_CONFIG_DR_250SPS)
 
-        # Set channels
-        if chp == 0 and chn == 1:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_0_1
-        elif chp == 0 and chn == 3:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_0_3
-        elif chp == 2 and chn == 3:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_2_3
-        elif chp == 1 and chn == 3:
-            config |= ADS1015_REG_CONFIG_MUX_DIFF_1_3
-        else:
-            raise ValueError("ADS1X15: Invalid channels specified: %d, %d" % (chp, chn))
+            # Set PGA/voltage range, defaults to +-6.144V
+            if (pga not in PGA_ADS1X15) and self.debug:
+                print >>sys.stderr, "ADS1x15: Invalid pga specified: %d, using 6144mV" % pga
+            config |= PGA_ADS1X15.setdefault(pga, ADS1015_REG_CONFIG_PGA_6_144V)
+            self.pga = pga
 
-        # Set 'start single-conversion' bit to begin conversions
-        config |= ADS1015_REG_CONFIG_OS_SINGLE
+            # Set channels
+            if chp == 0 and chn == 1:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_0_1
+            elif chp == 0 and chn == 3:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_0_3
+            elif chp == 2 and chn == 3:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_2_3
+            elif chp == 1 and chn == 3:
+                config |= ADS1015_REG_CONFIG_MUX_DIFF_1_3
+            else:
+                raise ValueError("ADS1X15: Invalid channels specified: %d, %d" % (chp, chn))
 
-        # Write threshold high and low registers to the ADC
-        # V_digital = (2^(n-1)-1)/pga*V_analog
-        if self.ic == IC_ADS1015:
-            threshold_word_high = int(threshold_high * (2048.0 / pga))
-        else:
-            threshold_word_high = int(threshold_high * (32767.0 / pga))
-        threshold_high_bytes = [(threshold_word_high >> 8) & 0xFF, threshold_word_high & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_HITHRESH, threshold_high_bytes)
+            # Set 'start single-conversion' bit to begin conversions
+            config |= ADS1015_REG_CONFIG_OS_SINGLE
 
-        if self.ic == IC_ADS1015:
-            threshold_word_low = int(threshold_low * (2048.0 / pga))
-        else:
-            threshold_word_low = int(threshold_low * (32767.0 / pga))
-        threshold_low_bytes = [(threshold_word_low >> 8) & 0xFF, threshold_word_low & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_LOWTHRESH, threshold_low_bytes)
+            # Write threshold high and low registers to the ADC
+            # V_digital = (2^(n-1)-1)/pga*V_analog
+            if self.ic == IC_ADS1015:
+                threshold_word_high = int(threshold_high * (2048.0 / pga))
+            else:
+                threshold_word_high = int(threshold_high * (32767.0 / pga))
+            threshold_high_bytes = [(threshold_word_high >> 8) & 0xFF, threshold_word_high & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_HITHRESH, threshold_high_bytes)
 
-        # Write config register to the ADC
-        # Once we write the ADC will convert continously and alert when things happen,
-        # we can read the converted values using getLastConversionResult
-        config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+            if self.ic == IC_ADS1015:
+                threshold_word_low = int(threshold_low * (2048.0 / pga))
+            else:
+                threshold_word_low = int(threshold_low * (32767.0 / pga))
+            threshold_low_bytes = [(threshold_word_low >> 8) & 0xFF, threshold_word_low & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_LOWTHRESH, threshold_low_bytes)
+
+            # Write config register to the ADC
+            # Once we write the ADC will convert continously and alert when things happen,
+            # we can read the converted values using getLastConversionResult
+            config_bytes = [(config >> 8) & 0xFF, config & 0xFF]
+            self.dev.write_list(ADS1015_REG_POINTER_CONFIG, config_bytes)
+
+        except:
+            self.lock.release()
+            raise
