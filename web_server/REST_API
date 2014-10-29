@@ -1,0 +1,86 @@
+REST API Documentation
+
+===============================================================================
+http://192.168.2.15/data/proximity?value
+http://192.168.2.15/data/attention?value
+http://192.168.2.15/data/heartrate?value
+----
+Method: POST
+
+parameter <value> integer non negative
+<value> will be placed into the database. On successful insertion, will return
+JSON of form:
+{
+    "success" : True,
+    "id" : <row_id>
+}
+where <row_id> is an integer id to <value>'s location.
+
+Failure will result in JSON:
+{
+    "success" : False,
+    "error" : <reason>
+}
+
+===============================================================================
+http://192.168.2.15/data/proximity/<item>
+http://192.168.2.15/data/attention/<item>
+http://192.168.2.15/data/heartrate/<item>
+----
+Method: GET
+
+parameter <item> integer non negative
+Retrieve from the database a list of entries with id's strictly greater than
+<item>. On success will return JSON of form:
+{
+    "success" : True,
+    "data" : <rows>
+}
+where <rows> is a list of tuples in the form [<id>, <value>].
+
+No data found, or other failures, will result in JSON:
+{
+    "success" : False,
+    "error" : <reason>
+}
+
+===============================================================================
+http://192.168.2.15/data/image?image
+----
+Method: POST
+
+parameter <image> image file with extensions of '.jpg', '.jpeg', or '.png'
+Upload image file to server, insert into database the path to this file. On
+success will return JSON of form:
+{
+    "success" : True,
+    "id" : <row_id>
+}
+where <row_id> is an integer id to <image>'s location.
+
+Failure will result in JSON:
+{
+    "success" : False,
+    "error" : <reason>
+}
+
+===============================================================================
+http://192.168.2.15/data/image/<item>
+----
+Method: GET
+
+parameter <item> integer non negative
+Retrieve from the database a list of entries with id's strictly greater than
+<item>. On success will return JSON of form:
+{
+    "success" : True,
+    "data" : <rows>
+}
+where <rows> is a list of tuples in the form [<id>, <path>]. <path> will be
+a string of the form "images/filename.ext".
+
+Failure will result in JSON:
+{
+    "success" : False,
+    "error" : <reason>
+}
