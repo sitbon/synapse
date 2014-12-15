@@ -2,10 +2,10 @@ import requests
 import re
 
 IP = '192.168.42.20'
-#CAMERA_API_URL = 'http://192.168.42.20/setting/cgi-bin/fd_control_client?func={0}'
 GET_VIDEO_FILE = 'fd_get_latest_media_file_2&type=0'
 GET_PHOTO_FILE = 'fd_get_latest_media_file&type=1'
-LIST_FILES = 'fd_list_files&0'
+LIST_ALL_FILES = 'fd_list_files&0'
+LIST_NEW_FILES = 'fd_list_files&referenceFile='
 PHOTO_MODE = 'fd_set_capture_mode&data=1' 
 VIDEO_MODE = 'fd_set_capture_mode&data=0'
 RECORD = 'fd_record'
@@ -24,12 +24,21 @@ def stop_recording():
   print 'end recording'
   run(RECORD)
 
-def get_latest_files():
+def get_latest_files(reference_file):
   print 'getting file names'
-  entries = run(LIST_FILES)
+  camera_files = []
+  if reference_file is None:
+    entries = run(LIST_ALL_FILES)
+  else:
+    reference_file = str.split(reference_file, 'DCIM/')[1]
+    entries = run(LIST_NEW_FILES + reference_file)
+
   files = re.findall("(100DRIFT\S\w+\W\w+)", entries)
   for file in files:
+    file = 'http://{0}/DCIM/{1}'.format(IP, file) 
     print file
+    camera_files.append(file)
+  return camera_files 
     
 def run(request):
   try:

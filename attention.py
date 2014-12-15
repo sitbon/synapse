@@ -6,6 +6,9 @@ import camera
 from threading import Thread
 
 value = 0
+last_file_copied = None
+copying_files = False
+
 def main():
     sp_lights = subprocess.Popen(['python', 'led.py', 'mindwave'],
                                 stdin = subprocess.PIPE,
@@ -34,10 +37,22 @@ def handleCamera():
       if is_recording:
         camera.stop_recording()
         is_recording = False
+      
+        if not copying_files:
+          Thread(target=handleCameraData).start()
 
 def handleCameraData():
-  print 'copying latest picture & video to web server'
+  global last_file_copied
+  global copying_files
+  copying_files = True
 
-                
+  print 'copying latest picture & video to web server'
+  files = camera.get_latest_files(last_file_copied)  
+  for file in files:
+     subprocess.Popen(['wget', '-nc', file,'-P', 'web_server/downloads/'])
+ 
+  last_file_copied = files[-1]
+  copying_files = False 
+  
 if __name__ == '__main__':
     main()
