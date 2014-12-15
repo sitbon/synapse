@@ -4,6 +4,7 @@ import thinkgear
 import requests
 import camera 
 from threading import Thread
+from time import sleep
 
 value = 0
 last_file_copied = None
@@ -14,6 +15,7 @@ def main():
                                 stdin = subprocess.PIPE,
                                 stdout = subprocess.PIPE,
                                 stderr = subprocess.PIPE, shell = False)
+
     global value
     Thread(target=handleCamera).start()
     for pkt in thinkgear.ThinkGearProtocol('/dev/rfcomm0').get_packets():
@@ -28,6 +30,7 @@ def main():
 def handleCamera():
   is_recording = False
   while True:
+    sleep(1)
     if value >= 40:
       if not is_recording:
         camera.take_picture()
@@ -48,10 +51,12 @@ def handleCameraData():
 
   print 'copying latest picture & video to web server'
   files = camera.get_latest_files(last_file_copied)  
-  for file in files:
-     subprocess.Popen(['wget', '-nc', file,'-P', 'web_server/downloads/'])
+  if len(files) > 0:
+    for file in files:
+       subprocess.Popen(['wget', '-nc', file,'-P', 'web_server/downloads/'])
  
-  last_file_copied = files[-1]
+    last_file_copied = files[-1]
+ 
   copying_files = False 
   
 if __name__ == '__main__':

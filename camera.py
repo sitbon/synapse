@@ -33,18 +33,20 @@ def get_latest_files(reference_file):
     reference_file = str.split(reference_file, 'DCIM/')[1]
     entries = run(LIST_NEW_FILES + reference_file)
 
-  files = re.findall("(100DRIFT\S\w+\W\w+)", entries)
-  for file in files:
-    file = 'http://{0}/DCIM/{1}'.format(IP, file) 
-    print file
-    camera_files.append(file)
+  try:
+    files = re.findall("(100DRIFT\S\w+\W\w+)", entries)
+    for file in files:
+      file = 'http://{0}/DCIM/{1}'.format(IP, file) 
+      camera_files.append(file)
+  except TypeError:
+     pass
+ 
   return camera_files 
     
 def run(request):
   try:
     base_url = 'http://{0}/setting/cgi-bin/fd_control_client?func='.format(IP)
     r = requests.get(base_url + request)
-    print r.text
     return r.text
   except requests.exceptions.ConnectionError, e:
     print 'restoring wifi connection with camera'
