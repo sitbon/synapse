@@ -35,7 +35,7 @@ def main():
       for d in pkt:
           if isinstance(d, thinkgear.ThinkGearAttentionData):
                 print d.value
-		value = d.value
+                value = d.value
                 print 'activating lights'
                 sp_lights.stdin.write(str(d.value) + '\n')
                 sys.stdout.flush()
