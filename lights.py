@@ -164,7 +164,65 @@ class Lights:
 
         self.pwm.run_program(pca_program, debug=debug)
 
-    
+class ProximityLights(Lights):
+    program_on = None                  
+    program_off = None
+    builder_on = None
+    builder_off = None                                                                                        
+    current_space = None
+                                   
+    def __init__(self, *args, **kwargs):
+        Lights.__init__(self, *args, **kwargs)
+        self.generate_program()               
+                                                                                                               
+    def generate_program(self):          
+        self.builder_on = ProgramBuilder()     
+        self.builder_off = ProgramBuilder()                                                                        
+
+        intensity_on = 0
+        intensity_off = 1                                             
+        for level in LEVELS:                
+             intensity_on = intensity_on + 0.20
+             intensity_off = intensity_off - 0.20
+             for c in level:                                                                                   
+                self.builder_on.add(c, 1)        
+                self.builder_off.add(c, 0)
+             
+             self.builder_on.step()            
+             self.builder_off.step()           
+                                                                                                              
+        self.program_on = self.builder_on.get()    
+        self.program_off = self.builder_off.get()   
+
+    def set_proximity(self, value):
+        on = 1                    
+        steps = len(self.program_on) - 1                  
+        step = min(steps, max(0, int(round(steps * on)))) 
+
+        if value == 0:
+            sleep_time = 0.100
+        elif value == 1:
+            sleep_time = 0.500
+        elif value == 2:
+            sleep_time = 1
+        
+        while True:
+            intensity_on = 0
+            sleep(0.500)
+            for level in LEVELS:
+                intensity_on = intensity_on + 0.20
+                if self.current_space == 0:
+                    self.set_all(intensity_on) 
+                    self.set_all_off()
+                elif self.current_space == 1:
+                    self.set_all(intensity_on) 
+                    sleep(0.10)
+                elif self.current_space == 2:
+                    self.set_all(intensity_on) 
+                    sleep(0.50)
+                else:
+                    self.set_all_off()
+
 class MindwaveLights(Lights):
     program_on = None
     program_off = None
