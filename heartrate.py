@@ -19,33 +19,32 @@ class HeartBeat():
                                                stdout = subprocess.PIPE, 
                                                stderr = subprocess.PIPE, shell = False)
        
-        sleep(2) 
-        self.nbsr_heartrate = NonBlockingStreamReader(self.gatttool_subprocess.stdout)        
-        self.gatttool_subprocess.stdin.write('\n')
-        self.gatttool_subprocess.stdin.write('connect')
-        self.gatttool_subprocess.stdin.write('\n')
-        sleep(2) 
+        # wait for process to come up
+        for x in range (0, 10):
+            if self.gatttool_subprocess.poll() is None:
+                sleep(0.500)
+
+        # this stream reader does not block if gatttool fails send anything to stdout
+        self.nbsr_heartrate = NonBlockingStreamReader(self.gatttool_subprocess.stdout)
+        
+        # connect bt le wahoo heartrate monitor and wait for connect commadn to be processed
+        self.gatttool_subprocess.stdin.write('\nconnect\n')
+        
         for x in range(0, 10):
-             print 'before printing line' 
              line = self.nbsr_heartrate.readline(0.1)
              print line
-             print 'after printing line'
              if line is not None:
                  if line.find('Connection successful') > 0:
-                     print "should be successful: " + line
                      break
              else:
-                 sleep(5)
+                 sleep(0.500)
       
-        sleep(5)
-        self.gatttool_subprocess.stdin.write('\n') 
-        self.gatttool_subprocess.stdin.write('char-write-req 1b 0100')
-        self.gatttool_subprocess.stdin.write('\n')
-        sleep(10) 
+        # this command tells gatttool to print heart rate information
+        self.gatttool_subprocess.stdin.write('\nchar-write-req 1b 0100\n')
+        
         while True:
             try:
                 line = self.nbsr_heartrate.readline(1)
-                print line
                 if line is not None:
                     if line.find('Notification handle') > 0:
                         right_side = line.split('value:')
