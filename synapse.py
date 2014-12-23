@@ -8,28 +8,35 @@ import heartrate
 import proximity
 import lights
 
-DATA_URL = "http://localhost/data/"
-ENABLE_PUBLISH = False
+DATA_URL = "http://192.168.42.1/data/"
+ENABLE_PUBLISH = True 
 
 class Synapse:
     def __init__(self):
-        self.attention = None #attention.
-        self.heartrate = None #heartrate.HeartBeat()
+        self.attention =  attention.Attention()
+        self.heartrate = heartrate.HeartBeat()
         self.proximity = None #proximity.Proxemic()
         self.lights = lights.Lights()
         self.lights_heartrate = lights.HeartrateLights()
 
     def start(self):
         self.lights.reset()
-        self.lights_heartrate.set_bpm(60)
-        #self.heartrate.monitor_heartrate(self.update_heartrate)
+        #self.lights_heartrate.set_bpm(60)
+        self.heartrate.monitor_heartrate(self.update_heartrate)
+        self.attention.monitor_attention(self.update_attention)
         #self.proximity.monitor_space(lambda x: True, self.update_proximity)
+        #self.lights_heartrate.set_bpm(int(self.heartrate.current_value))
 
     def update_heartrate(self, value):
         print >>sys.stderr, "EKG:", value
         self.publish_value(self.heartrate, value)
         return True
-        
+
+    def update_attention(self, value):
+        print >>sys.stderr, "EEG:", value
+        self.publish_value(self.attention, value)
+        return True
+       
     def update_proximity(self, value):
         print >>sys.stderr, "PRX:", value
         self.publish_value(self.proximity, value)
@@ -38,7 +45,6 @@ class Synapse:
     def publish_value(self, source, value):
         if not ENABLE_PUBLISH:
             return
-        
         #timestamp = time.now()
         if source is self.attention:
             url_id = "attention"
@@ -49,7 +55,7 @@ class Synapse:
         else:
             raise ValueError, "invalid data source"
 
-        do_post = lambda: requests.post(DATA_URL + url_id, json={"value" : str(value)})
+        do_post = lambda: requests.post(DATA_URL + url_id, {"value" : str(value)})
 
         task = threading.Thread(target=do_post)
         task.setDaemon(True)

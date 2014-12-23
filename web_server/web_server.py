@@ -1,7 +1,7 @@
 import os
 import json
 from bottle import route, request, run, template, static_file
-import sqlite3
+from pysqlite2 import dbapi2 as sqlite3
 
 @route('/')
 @route('/index')
@@ -171,4 +171,4 @@ def static(path):
 def images(path):
     return static_file(path, root='images')
 
-run(host='localhost', port=8080)
+run(host='192.168.42.1', port=80)

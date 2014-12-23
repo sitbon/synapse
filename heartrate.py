@@ -1,3 +1,4 @@
+import sys
 import subprocess
 from time import sleep
 from threading import Thread
@@ -35,7 +36,6 @@ class HeartBeat():
         
         for x in range(0, 10):
              line = self.nbsr_heartrate.readline(0.1)
-             print line
              if line is not None:
                  if line.find('Connection successful') > 0:
                      break
@@ -46,6 +46,7 @@ class HeartBeat():
         self.gatttool_subprocess.stdin.write('\nchar-write-req 1b 0100\n')
         
         while True:
+            sleep(1)
             try:
                 line = self.nbsr_heartrate.readline(1)
                 if line is not None:
@@ -53,13 +54,21 @@ class HeartBeat():
                         right_side = line.split('value:')
                         numbers = right_side[1].split(' ')
                         current_value = int('0x' + numbers[2], 16)
-                        #print current_value
                         if not callback(current_value):
                             return
                         sleep(1)
             except TypeError:
                 pass
 
+def update_heartrate(value):                                      
+    print >>sys.stderr, "EKG:", value                                   
+    return True   
+
 if __name__ == '__main__':
     wahoo = HeartBeat()
-          
+    wahoo.monitor_heartrate(update_heartrate)
+    sleep(5)
+
+    while True:
+        if wahoo.current_value is not None:
+            print wahoo.current_value      

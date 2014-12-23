@@ -63,7 +63,7 @@
          * to the graph.
          */
         function getAttentionData() {
-            var attentionAPI = "http://192.168.2.15/data/attention/" + attentionIndex;
+            var attentionAPI = "http://192.168.42.1/data/attention/" + attentionIndex;
             $.getJSON(attentionAPI)
             .done(function(data) {
                 if (data.success == true) {
@@ -102,7 +102,7 @@
          * to the graph.
          */
         function getProximityData() {
-            var proximityAPI = "http://192.168.2.15/data/proximity/" + proximityIndex;
+            var proximityAPI = "http://192.168.42.1/data/proximity/" + proximityIndex;
             $.getJSON(proximityAPI)
             .done(function(data) {
                 if (data.success == true) {
@@ -133,7 +133,7 @@
          * to the graph.
          */
         function getHeartrateData() {
-            var heartrateAPI = "http://192.168.2.15/data/heartrate/" + heartrateIndex;
+            var heartrateAPI = "http://192.168.42.1/data/heartrate/" + heartrateIndex;
             $.getJSON(heartrateAPI)
             .done(function(data) {
                 if (data.success == true) {
@@ -179,7 +179,7 @@
          * are found, add them to the slideshow and remove old pictures.
          */
         function getNewPictures() {
-            var imageAPI = "http://192.168.2.15/data/image/" + imageIndex;
+            var imageAPI = "http://192.168.42.1/data/image/" + imageIndex;
             $.getJSON(imageAPI)
             .done(function (data) {
                 if (data.success == true) {
