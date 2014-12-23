@@ -1,7 +1,7 @@
 import sys
 import subprocess
 from time import sleep
-from threading import Thread
+from multiprocessing import Process
 from nbstreamreader import NonBlockingStreamReader
 
 class HeartBeat():
@@ -15,7 +15,7 @@ class HeartBeat():
         self.gatttool_thread = None
 
     def monitor_heartrate(self, callback):
-        Thread(target=self._start_reading, args=(callback,)).start()
+        Process(target=self._start_reading, args=(callback,)).start()
 
     def _start_reading(self, callback):
         self.gatttool_subprocess = subprocess.Popen(['./gatttool', '-t', 'random', '-b', 'DD:FB:8B:5B:7F:28', '-I'],

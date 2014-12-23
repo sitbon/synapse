@@ -1,14 +1,14 @@
 import sys
 import thinkgear 
 import camera 
-from threading import Thread
+from multiprocessing import Process
 from time import sleep
 
 class Attention():
     current_value = None
 
     def monitor_attention(self, callback):
-        Thread(target=self._start_reading, args=(callback,)).start()
+        Process(target=self._start_reading, args=(callback,)).start()
 
     def _start_reading(self, callback):
         while True:

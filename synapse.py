@@ -1,7 +1,7 @@
 import sys
 import time
 import requests
-import threading
+from multiprocessing import Process 
 
 import attention
 import heartrate
@@ -57,8 +57,8 @@ class Synapse:
 
         do_post = lambda: requests.post(DATA_URL + url_id, {"value" : str(value)})
 
-        task = threading.Thread(target=do_post)
-        task.setDaemon(True)
+        task = Process(target=do_post)
+        #task.setDaemon(True)
         task.start()
         
 
