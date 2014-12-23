@@ -257,3 +257,65 @@ class MindwaveLights(Lights):
             print "LIGHTS:", str(round(on * 100)) + "%", program[step:step+1]
             
         self.run_program(self.program_on[:step+1] + self.program_off[step+1:])
+
+class HeartrateLights(Lights):
+    program = None
+    bpm = 1
+    _running = False
+    
+    def __init__(self, *args, **kwargs):
+        Lights.__init__(self, *args, **kwargs)
+        self.program = None
+        self.bpm = 1
+        self._running = False
+        self.generate_program()
+    
+    def generate_program(self):
+        builder = ProgramBuilder()
+        step_duration = lambda: (60.0 / float(self.bpm)) / float(len(self.program))
+        
+        self.program = builder.add(None, 1).lerp(1, 10).get()
+        program_rev = list(self.program)
+        program_rev.reverse()
+        self.program += program_rev
+        
+        # HACK: lerp should allow a callable or not depend on duration if desired
+        for i, entry in enumerate(self.program):
+            self.program[i] = (step_duration, entry[1])
+    
+    def generate_program_old(self):
+        builder = ProgramBuilder()
+        step_duration = lambda: (60.0 / float(self.bpm)) / float(len(self.program))
+        
+        for level in LEVELS:
+            for channel in level:
+                builder.add(channel, 1)
+            for level2 in LEVELS:
+                if level2 != level:
+                    for channel in level2:
+                        builder.add(channel, 0)
+            
+            builder.step(step_duration)
+        
+        self.program = builder.get()
+    
+    def start(self):
+        if not self._running:
+            self._running = True
+            task = threading.Thread(target=self._run)
+            task.setDaemon(True)
+            task.start()
+    
+    def stop(self):
+        self._running = False
+    
+    def _run(self):
+        while self._running:
+            self.run_program(self.program)
+    
+    def set_bpm(self, bpm):
+        if bpm <= 0:
+            raise ValueError, "Invalid BPM"
+        
+        self.bpm = bpm
+        self.start()

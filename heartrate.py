@@ -11,9 +11,12 @@ class HeartBeat():
     nbsr_heartrate = None
 
     def __init__(self):
-        self.gatttool_thread = Thread(target=self.start_reading).start()
+        self.gatttool_thread = None
 
-    def start_reading(self):
+    def monitor_heartrate(self, callback):
+        Thread(target=self._start_reading, args=(callback,)).start()
+
+    def _start_reading(self, callback):
         self.gatttool_subprocess = subprocess.Popen(['./gatttool', '-t', 'random', '-b', 'DD:FB:8B:5B:7F:28', '-I'],
                                                stdin = subprocess.PIPE, 
                                                stdout = subprocess.PIPE, 
@@ -50,7 +53,9 @@ class HeartBeat():
                         right_side = line.split('value:')
                         numbers = right_side[1].split(' ')
                         current_value = int('0x' + numbers[2], 16)
-                        print current_value
+                        #print current_value
+                        if not callback(current_value):
+                            return
                         sleep(1)
             except TypeError:
                 pass
