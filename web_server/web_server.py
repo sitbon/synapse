@@ -46,7 +46,7 @@ def proximity_data(item):
         return {"success" : False, "error" : "No data."}
 
 @route('/data/attention', method='POST')
-def post_proximity():
+def post_attention():
     val = request.POST.get('value', -1)
 
     if val != -1:
@@ -83,7 +83,7 @@ def attention_data(item):
         return {"success" : False, "error" : "No data."}
 
 @route('/data/heartrate', method='POST')
-def post_proximity():
+def post_heartrate():
     val = request.POST.get('value', -1)
 
     if val != -1:
