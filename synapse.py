@@ -9,7 +9,6 @@ import heartrate
 import proximity
 import lights
 import button 
-<<<<<<< HEAD
 import camera
 =======
 
