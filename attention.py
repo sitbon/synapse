@@ -1,6 +1,5 @@
 import sys
 import thinkgear 
-import camera 
 from multiprocessing import Process, Value
 from time import sleep
 

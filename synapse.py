@@ -2,7 +2,6 @@ import sys
 import time
 import requests
 from multiprocessing import Process, Value 
-from threading import Thread
 import subprocess
 
 import attention
@@ -10,7 +9,9 @@ import heartrate
 import proximity
 import lights
 import button 
+<<<<<<< HEAD
 import camera
+=======
 
 DATA_URL = "http://192.168.42.1/data/"
 ENABLE_PUBLISH = True 
@@ -79,7 +80,7 @@ class Synapse:
         self.proximity.monitor_space(lambda x: True, self.update_proximity)
         self.lights_process.start()
         self.camera_process.start()
- 
+
     def update_heartrate(self, value):
         print >>sys.stderr, "EKG:", value
         self.publish_value(self.heartrate, value)        
