@@ -3,7 +3,8 @@
 import sys
 from time import time
 import threading
-
+from multiprocessing import Process
+from time import sleep
 from edi2c import ads1x15
 
 
@@ -128,6 +129,7 @@ class Proxemic(Proximity):
         current_space_time = 0
 
         while True:
+            sleep(0.100)
             space, distance = self.get_space_distance()
             now = time()
 
@@ -142,7 +144,7 @@ class Proxemic(Proximity):
 
 
     def monitor_space(self, callback, distance_callback):
-        monitor_thread = threading.Thread(target=self._monitor_space_thread, args=(callback,distance_callback))
+        monitor_thread = Process(target=self._monitor_space_thread, args=(callback,distance_callback))
         monitor_thread.start()
 
 

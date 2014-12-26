@@ -1,23 +1,20 @@
 import sys
 import thinkgear 
 import camera 
-from threading import Thread
+from multiprocessing import Process
 from time import sleep
 
 class Attention():
-    current_value = None
-
     def monitor_attention(self, callback):
-        Thread(target=self._start_reading, args=(callback,)).start()
+        Process(target=self._start_reading, args=(callback,)).start()
 
     def _start_reading(self, callback):
         while True:
-            sleep(1)
             try:                                  
                 for pkt in thinkgear.ThinkGearProtocol('/dev/rfcomm0').get_packets():
                     for d in pkt:                                                                                        
                         if isinstance(d, thinkgear.ThinkGearAttentionData):
-                            current_value = d.value
+                            current_value = int(d.value)
                             if not callback(current_value):
                                 return
             except:

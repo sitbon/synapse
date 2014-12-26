@@ -1,8 +1,11 @@
 import sys
 import subprocess
 from time import sleep
-from threading import Thread
+from multiprocessing import Process
 from nbstreamreader import NonBlockingStreamReader
+
+#MAC_ADDRESS = 'DD:FB:8B:5B:7F:28'
+MAC_ADDRESS = 'D4:48:C2:4C:A0:19'
 
 class HeartBeat():
     current_value = None
@@ -15,10 +18,10 @@ class HeartBeat():
         self.gatttool_thread = None
 
     def monitor_heartrate(self, callback):
-        Thread(target=self._start_reading, args=(callback,)).start()
+        Process(target=self._start_reading, args=(callback,)).start()
 
     def _start_reading(self, callback):
-        self.gatttool_subprocess = subprocess.Popen(['./gatttool', '-t', 'random', '-b', 'DD:FB:8B:5B:7F:28', '-I'],
+        self.gatttool_subprocess = subprocess.Popen(['./gatttool', '-t', 'random', '-b', MAC_ADDRESS, '-I'],
                                                stdin = subprocess.PIPE, 
                                                stdout = subprocess.PIPE, 
                                                stderr = subprocess.PIPE, shell = False)
@@ -43,8 +46,9 @@ class HeartBeat():
                  sleep(0.500)
       
         # this command tells gatttool to print heart rate information
-        self.gatttool_subprocess.stdin.write('\nchar-write-req 1b 0100\n')
-        
+        #self.gatttool_subprocess.stdin.write('\nchar-write-req 1b 0100\n')
+        self.gatttool_subprocess.stdin.write('\nchar-write-req 18 0100\n')
+
         while True:
             sleep(1)
             try:
@@ -56,7 +60,6 @@ class HeartBeat():
                         current_value = int('0x' + numbers[2], 16)
                         if not callback(current_value):
                             return
-                        sleep(1)
             except TypeError:
                 pass
 
