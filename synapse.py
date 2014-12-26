@@ -10,7 +10,6 @@ import proximity
 import lights
 import button 
 import camera
-=======
 
 DATA_URL = "http://192.168.42.1/data/"
 ENABLE_PUBLISH = True 
