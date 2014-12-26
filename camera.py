@@ -1,7 +1,8 @@
 import requests
 import re
+from time import sleep
 
-IP = '192.168.42.20'
+IP = '192.168.42.21'
 GET_VIDEO_FILE = 'fd_get_latest_media_file_2&type=0'
 GET_PHOTO_FILE = 'fd_get_latest_media_file&type=1'
 LIST_ALL_FILES = 'fd_list_files&0'
@@ -14,15 +15,18 @@ def take_picture():
   print 'taking picture'
   run(PHOTO_MODE)
   run(RECORD)
+  sleep(2)
 
 def start_recording():
   print 'start recording'
   run(VIDEO_MODE)
   run(RECORD)
+  sleep(2)
 
 def stop_recording():
   print 'end recording'
   run(RECORD)
+  sleep(2)
 
 def get_latest_files(reference_file):
   print 'getting file names'

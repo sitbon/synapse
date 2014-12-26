@@ -1,13 +1,14 @@
 import sys
 import thinkgear 
 import camera 
-from multiprocessing import Process
+from multiprocessing import Process, Value
 from time import sleep
 
 class Attention():
+ 
     def monitor_attention(self, callback):
         Process(target=self._start_reading, args=(callback,)).start()
-
+   
     def _start_reading(self, callback):
         while True:
             try:                                  
@@ -19,13 +20,13 @@ class Attention():
                                 return
             except:
                 pass
- 
 
-def update_attention(value):                                      
-    print >>sys.stderr, "EEG:", value                             
-    return True  
 
-  
+def update_attention(value):
+    print >>sys.stderr, "EEG:", value
+    return True
+
+
 if __name__ == '__main__':
     #main()
     a = Attention()
@@ -34,4 +35,3 @@ if __name__ == '__main__':
 
     while True:
         sleep(1)
-        print a.current_value
