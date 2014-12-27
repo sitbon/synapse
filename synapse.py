@@ -71,7 +71,7 @@ class Synapse:
         self.heartrate.monitor_heartrate(self.update_heartrate)
         self.attention.monitor_attention(self.update_attention)
         #self.proximity.monitor_space(lambda x: True, self.update_proximity)
-        self.lights_process.start()
+        #self.lights_process.start()
         self.camera_process.start()
 
     def update_heartrate(self, value):
@@ -116,16 +116,22 @@ class Synapse:
             if self.attention_value.value >= 80:
                 if not recording:
                     camera.take_picture()
-                if self.attention_value.value >= 80:
-                    camera.start_recording()
-                    recording = True
+                    print 'sleeping 2 seconds'
+                    time.sleep(2)
+                    if self.attention_value.value >= 80:
+                        camera.start_recording()
+                        recording = True
+                        print 'sleeping 2 seconds'
+                        time.sleep(2)
             else:
                 if recording:
                     camera.stop_recording()
                     recording = False
-
+                          
                     if not self.copying_files.value:
                         Process(target=self.copy_camera_files).start()
+                        print 'sleeping 1 second'
+                        time.sleep(1)
 
     def copy_camera_files(self):
        self.copying_files.value = True
