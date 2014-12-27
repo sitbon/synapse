@@ -9,9 +9,7 @@ import heartrate
 import proximity
 import lights
 import button 
-<<<<<<< HEAD
 import camera
-=======
 
 DATA_URL = "http://192.168.42.1/data/"
 ENABLE_PUBLISH = True 
@@ -42,13 +40,10 @@ class Synapse:
         self.camera_process = Process(target=self.handle_camera)
 
     def _switch_animation_listener(self):
-        print 'toggled!'
         if self.animation.value == self.ATTENTION:
-            print 'attention is true'
             self.previous_animation.value = self.ATTENTION
             self.animation.value = self.HEARTRATE 
         else:
-            print 'heartrate is true'
             self.previous_animation.value = self.HEARTRATE
             self.animation.value = self.ATTENTION 
         return True
@@ -64,10 +59,8 @@ class Synapse:
                 if self.animation.value == self.ATTENTION:
                     if self.previous_animation.value == self.HEARTRATE:
                         self.lights_heartrate.stop()
-                    print 'attention lights' 
                     self.lights_mindwave.set_mindwave(self.attention_value.value)
                 else:
-                    print 'heartbeat lights'
                     self.lights_heartrate.set_bpm(self.heartrate_value.value)
             except: 
                 pass
@@ -77,7 +70,7 @@ class Synapse:
         self.lights.reset()
         self.heartrate.monitor_heartrate(self.update_heartrate)
         self.attention.monitor_attention(self.update_attention)
-        self.proximity.monitor_space(lambda x: True, self.update_proximity)
+        #self.proximity.monitor_space(lambda x: True, self.update_proximity)
         self.lights_process.start()
         self.camera_process.start()
 
