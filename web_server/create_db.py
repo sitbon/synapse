@@ -12,3 +12,6 @@ db.commit()
 
 db.execute("CREATE TABLE images (id INTEGER PRIMARY KEY, url TEXT NOT NULL)")
 db.commit()
+
+db.execute("CREATE TABLE videos (id INTEGER PRIMARY KEY, url TEXT NOT NULL")
+db.commit()
