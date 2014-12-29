@@ -1,7 +1,9 @@
 import os
 import json
+import bottle
 from bottle import route, request, run, template, static_file
 from pysqlite2 import dbapi2 as sqlite3
+
 
 @route('/')
 @route('/index')
@@ -121,20 +123,27 @@ def heartrate_data(item):
 
 @route('/data/image', method='POST')
 def image_upload():
-    image = request.files.get('image')
-    name, ext = os.path.splitext(image.filename)
-    if ext not in ('.png', '.jpg', '.jpeg'):
-        return {"success" : False, "error" : "Incorrect file type."}
+    # I'll later verify that this path exists
+    val = request.POST.get('value', -1)
+    #image = request.files.get('image')
+    
+    #name, ext = os.path.splitext(image.filename)
+    #if ext not in ('.png', '.jpg', '.jpeg', '.JPG'):
+    #    return {"success" : False, "error" : "Incorrect file type."}
 
-    path = "images/"
-    if not os.path.exists(path):
-        os.makedirs(path)
+    #path = "images/"
+    #if not os.path.exists(path):
+    #    os.makedirs(path)
 
-    image.save(path)
+    #image.save(path)
+
+    # I'll later verify that this path exists                               
+    val = request.POST.get('value', -1)          
 
     db = sqlite3.connect('./dress.db')
     c = db.cursor()
-    c.execute("INSERT INTO images (url) VALUES (?)", (path+image.filename,))
+    #c.execute("INSERT INTO images (url) VALUES (?)", (path+image.filename,))
+    c.execute("INSERT INTO images (url) VALUES (?)", (val,))
     db.commit()
     row_id = c.lastrowid
     c.close()
@@ -170,5 +179,9 @@ def static(path):
 @route('/images/:path#.+#', name='images')
 def images(path):
     return static_file(path, root='images')
+
+@route('/videos/:path#.+#', name='videos')
+def videos(path):
+    return static_file(path, root='videos')
 
 run(host='192.168.42.1', port=80)

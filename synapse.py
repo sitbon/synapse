@@ -70,8 +70,8 @@ class Synapse:
         self.lights.reset()
         self.heartrate.monitor_heartrate(self.update_heartrate)
         self.attention.monitor_attention(self.update_attention)
-        #self.proximity.monitor_space(lambda x: True, self.update_proximity)
-        #self.lights_process.start()
+        self.proximity.monitor_space(lambda x: True, self.update_proximity)
+        self.lights_process.start()
         self.camera_process.start()
 
     def update_heartrate(self, value):
@@ -101,6 +101,14 @@ class Synapse:
             url_id = "heartrate"
         elif source is self.proximity:
             url_id = "proximity"
+        elif source is camera:
+            if '.JPG' in value:
+                url_id = 'image'
+            elif '.mp4' in value:
+                url_id = 'video'
+            else:
+                raise ValueError, "invalid data source"
+            print url_id
         else:
             raise ValueError, "invalid data source"
 
@@ -139,8 +147,18 @@ class Synapse:
        if len(files) > 0:
           for file in files:
               print 'copying latest pictures & videos to web server'
-              sp = subprocess.call(['wget', '-nc', file, '-P', 'web_server/downlods/'])
-              
+              child = subprocess.Popen(['wget', '-nc', file, '-P', 'web_server/images/'], 
+                                                                   stdout=subprocess.PIPE,
+                                                                   stderr=subprocess.PIPE)
+              streamdata = child.communicate()
+              stdout = streamdata[0]
+              stderr = streamdata[1]
+              print streamdata
+              if 'already there' not in stderr:
+                  print 'publishing!'
+                  value = file.replace('http://192.168.42.21/DCIM/100DRIFT/', '')
+                  self.publish_value(camera, value)        
+ 
        self.copying_files.value = False 
 
 def main(args):

@@ -3,15 +3,22 @@
 <head>
     <title>Dress Data</title>
     <link href="/static/dress.css" rel="stylesheet" type="text/css">
+    <link href="/static/minimalist.css">
     <script language="javascript" type="text/javascript" src="/static/jquery-2.1.1.min.js"></script>
     <script language="javascript" type="text/javascript" src="/static/jquery.flot.min.js"></script>
     <script language="javascript" type="text/javascript" src="/static/jquery.rs.slideshow.min.js"></script>
+    <script language="javascript" type="text/javascript" src="/static/flowplayer.mini.js"></script>
+    <!-- Bootstrap core CSS -->
+    <link href="static/boostrap/css/bootstrap.min.css" rel="stylesheet">
 
     <script language="Javascript" type="text/javascript">
     $(function() {
         var maxPoints = 20;
         var proximityIndex = 0, attentionIndex = 0, heartrateIndex = 0, imageIndex = 0;
         var proximityArray = [[0,0]], attentionArray = [[0,0]], heartrateArray = [[0,0]];
+
+        var videoIndex = 0;       
+        var videoArray = [[0,0]];
 
         /*
          * Data describing plots on graph.
@@ -58,6 +65,12 @@
                 colors: ["#c4c3c3", "#8d67ac"]
         });
 
+        /*
+         * Retrievs next video to add to video playlist
+         */
+        function getVideoData() {
+        }
+ 
         /*
          * Retrieve attention data from server through API. If successful, add data points
          * to the graph.
@@ -214,9 +227,17 @@
     });
     </script>
 </head>
+
 <body>
+
+    <div class="plot-container">                                                                               
+        <div id="dressPlot" class="plot-placeholder"></div>                                                    
+    </div>    
+
+    <img class="logo" src="/images/logo_anouk.png" width="100" height="120">  
+    
     <img class="anouk" src="/images/anouk.png" width="260" height="260">
-    <img class="logo" src="/images/logo_anouk.jpg" width="100" height="120">
+
     <div id="intimateCircle" class="target">
         <img class="intimate" src="/images/intimate.png" width="260" height="260">
     </div>
@@ -237,13 +258,9 @@
         <img class="none" src="/images/none.png" width="260" height="260">
     </div>
 
-    <div id="slideshow" class="rs-slideshow">
+     <div id="slideshow" class="rs-slideshow">
         <div class="slide-container">
         </div>
-    </div>
-
-    <div class="plot-container">
-        <div id="dressPlot" class="plot-placeholder"></div>
     </div>
 </body>
 </html>
