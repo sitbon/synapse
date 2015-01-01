@@ -20,6 +20,18 @@ h2 {
     height: 100%;
     font-size: 14px;
     line-height: 1.2em;
+    background-color: #000;
+}
+
+.video-container {
+    width: 450px;
+    height: 230px;
+    max-width: 500px;
+    background: #444;
+    bottom: 20px;
+    right: 340px;                  
+    position: absolute;
+    background-color: #fff;
 }
 
 .rs-slideshow {

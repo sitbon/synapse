@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!DOCTYPE html>
 <html>
 <head>
     <title>Dress Data</title>
@@ -7,9 +7,9 @@
     <script language="javascript" type="text/javascript" src="/static/jquery-2.1.1.min.js"></script>
     <script language="javascript" type="text/javascript" src="/static/jquery.flot.min.js"></script>
     <script language="javascript" type="text/javascript" src="/static/jquery.rs.slideshow.min.js"></script>
-    <script language="javascript" type="text/javascript" src="/static/flowplayer.mini.js"></script>
+    <script language="javascript" type="text/javascript" src="/static/flowplayer.min.js"></script>
     <!-- Bootstrap core CSS -->
-    <link href="static/boostrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
     <script language="Javascript" type="text/javascript">
     $(function() {
@@ -18,8 +18,16 @@
         var proximityArray = [[0,0]], attentionArray = [[0,0]], heartrateArray = [[0,0]];
 
         var videoIndex = 0;       
-        var videoArray = [[0,0]];
-
+        var videoUrls = [];
+        
+	videoPlaylist = [
+        	[
+                    {mp4: 'http://192.168.42.1/images/another.mp4'},
+        	],
+   	]
+        var videoPlayer = $('#player').flowplayer({playlist: videoPlaylist});
+        console.log(videoPlayer);
+        
         /*
          * Data describing plots on graph.
          */
@@ -66,12 +74,6 @@
         });
 
         /*
-         * Retrievs next video to add to video playlist
-         */
-        function getVideoData() {
-        }
- 
-        /*
          * Retrieve attention data from server through API. If successful, add data points
          * to the graph.
          */
@@ -104,7 +106,7 @@
                         attentionArray[i][0] = i;
                     }
                     attentionData["data"] = attentionArray;
-                    console.log(attentionData["data"]);
+                    //console.log(attentionData["data"]);
                 }
                 setTimeout(getAttentionData, 1000);
             });
@@ -197,7 +199,7 @@
             .done(function (data) {
                 if (data.success == true) {
                     imageIndex = data.data[data.data.length-1][0];
-
+                    console.log(imageIndex);
                     var slides = [];
                     for (var i = 0; i < data.data.length; ++i) {
                         var s = data.data[i][1].replace("\"", "'");
@@ -213,29 +215,70 @@
             });
         }
 
+        function updateVideoList() {
+            var videoAPI = "http://192.168.42.1/data/video/" + videoIndex;
+            $.getJSON(videoAPI)                                           
+            .done(function(data) {   
+                if (data.success == true) {
+                    videoIndex = data.data[data.data.length-1][0];
+                    console.log(data.data.length-1)
+                    console.log(data);
+                    for (var i = 0; i < data.data.length; ++i) {  
+                        v = data.data[i][1];                      
+                        console.log(v);                         
+                        videoUrls.push(v);
+                        videoPlaylist.push([{mp4:v},]);
+                    }
+                } else {
+                    console.log('failed to fetch video list from server'); 
+                    setTimeout(updateVideoList, 30000);
+                }
+             });
+          }
+         
+ 
+
         // Start slideshow with no data.
         $('#slideshow').rsfSlideshow({slides: []});
 
         $('.target').hide();
+        videoPlayer.one('ready', function(ev, api) {
+            api.conf.adaptiveRatio = true;
+            console.log("totally ready");
+            api.resume();
+        });
+         
+        videoPlayer.bind('load', function(e, api, video) {
+            console.log("we're about to load");
+            api.conf.adaptiveRatio = true;
+            if (video.is_last) {
+                api.bind("pause", function(e, api) {                          
+                    api.resume();                                             
+                });  
+            } else {
+                console.log('video isnt last');
+            }
+        });
 
         // Start data gathering
-        setTimeout(getAttentionData, 1000);
-        setTimeout(getHeartrateData, 1000);
-        setTimeout(getProximityData, 1000);
-        setTimeout(getNewPictures, 1500);
-        setTimeout(updateGraph, 1500);
+        //setTimeout(getAttentionData, 1000);
+        //setTimeout(getHeartrateData, 1000);
+        //setTimeout(getProximityData, 1000);
+        //setTimeout(getNewPictures, 1500);
+        //setTimeout(updateVideoList, 1500);
+        //setTimeout(updateGraph, 1500);
     });
     </script>
 </head>
 
 <body>
-
+    <div id="player" class="video-container"></div>
     <div class="plot-container">                                                                               
-        <div id="dressPlot" class="plot-placeholder"></div>                                                    
+            <div id="dressPlot" class="plot-placeholder"></div>                                                    
     </div>    
 
-    <img class="logo" src="/images/logo_anouk.png" width="100" height="120">  
-    
+    <img class="logo" src="/images/logo_anouk.png" width="100" height="120"> 
+
     <img class="anouk" src="/images/anouk.png" width="260" height="260">
 
     <div id="intimateCircle" class="target">
@@ -262,5 +305,6 @@
         <div class="slide-container">
         </div>
     </div>
+
 </body>
 </html>
