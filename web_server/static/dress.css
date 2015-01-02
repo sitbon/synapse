@@ -8,36 +8,40 @@ h2 {
 
 
 .plot-placeholder {
-    width: 100%;
-	height: 50%;
+    width: 90%;
+	height: 40%;
     font-size: 14px;
     line-height: 1.2em;
     background-color: #000;
 }
 
+.video-placeholder {
+    width: 70%;
+	height: 30%;
+    background-color: #000;
+}
+
 .rs-slideshow {
-    border-radius: 50%;
-    height: 260px;
+	position: absolute;
+    height: 40%;
+	width: 25%;
     overflow: hidden;
-    position: absolute;
-    width: 260px;
     bottom: 20px; 
-    right: 20px;
     z-index: 10;
 }
  
 .rs-slideshow .slide-container {
+	position: absolute;
     background-color: #444;
+	width: 100%;
     height: 100%;
-    left: 0;
-    overflow: hidden;
-    position: absolute;
-    top: 0;
-    width: 100%;
+	border-radius: 50%;
 }
  
 .rs-slideshow .slide-container img {
-    position: absolute;
+    border-radius: 50%;
+	width: 100%;
+    height: 100%;
 }
 
  
@@ -48,6 +52,7 @@ h2 {
 
 .proximity {
 	position: absolute;
+	top: 50px;
 	height: 50%;
 	z-index: 1;
 }
@@ -83,6 +88,4 @@ h2 {
 }
 
 .logo {
-    left: 100px;
-    bottom: 20px;
 }
