@@ -1,0 +1,78 @@
+<DOCTYPE html>                                               
+<!-- 1. skin -->                                             
+<link rel="stylesheet" href="../static/minimalist.css">      
+<link rel="stylesheet" href="../static/dress.css">
+                                             
+<!-- 2. jquery library -->                                   
+<script src="../static/jquery-2.1.1.min.js"></script>
+<!-- 3. jquery graph -->        
+<script src="/static/jquery.flot.min.js"></script>                                                             
+<!-- 3. flowplayer for video -->                                       
+<script src="../static/flowplayer.min.js"></script>
+<!-- global options -->
+<script>
+flowplayer.conf = {
+   ratio: 5/12,
+   splash: false
+};
+</script>
+          
+<!-- 4. slideshow for images --> 
+<script src="../static/jquery.rs.slideshow.min.js"></script>
+<script>
+var videoIndex = 0;
+var videoUrls = [];
+var videoPlaylist = [];
+var videoplayer = {};
+
+flowplayer(function (api, root) {
+	api.bind("load", function (e, api, video) {
+		console.log("load");
+    }).bind("ready", function () {
+		console.log("ready");
+		api.resume();
+    }).bind('paused', function() {
+		console.log("paused");
+	}).bind('finish', function(){
+		console.log("finish");
+		api.resume()
+	}).bind('unload', function() {
+		console.log("unload");
+	}).bind('stop', function() {
+		console.log("stop");
+	});
+});
+
+
+
+var updateVideoList = function() {
+	console.log('updating video list');
+    var videoAPI = "http://192.168.42.1/data/video/" + videoIndex; 
+	console.log(videoAPI);       
+    $.getJSON(videoAPI)                                                   
+            .done(function(data) {                                        
+                if (data.success == true) {  
+					videoIndex = data.data[data.data.length-1][0];        
+                    for (var i = 0; i < data.data.length; ++i) {          
+                        v = data.data[i][1];
+						console.log(v);                              
+                        videoUrls.push({mp4: v});
+                    }                                                     
+                } else {                                                  
+                    console.log('failed to fetch video list from server');    
+                }
+				console.log(data);
+				console.log(videoUrls);
+				setTimeout(updateVideoList, 30000);                                                          
+             });
+}
+
+$(function() {
+	$('#player').flowplayer({ playlist: [[{mp4: "http://192.168.42.1/images/five_seconds.mp4"}]], });
+	setTimeout(updateVideoList, 5000);
+});
+</script>
+<body bgcolor="#fff">
+<div id="player" class="video-container" autoplay="true">
+</div> 
+</body> 
