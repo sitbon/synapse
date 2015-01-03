@@ -1,6 +1,7 @@
 import os
 import json
 import bottle
+import cherrypy
 from bottle import route, request, run, template, static_file
 from pysqlite2 import dbapi2 as sqlite3
 
@@ -168,9 +169,37 @@ def image_data(item):
     else:
         return {"success" : False, "error" : "No data."}
 
-@route('/data/video')
-def video_data():
-    return {"success" : False, "error" : "Not implemented."}
+@route('/data/video', method='POST')      
+def video_upload():    
+    # I'll later verify that this path exists
+    val = request.POST.get('value', -1)                       
+                       
+    db = sqlite3.connect('./dress.db')
+    c = db.cursor()
+    c.execute("INSERT INTO videos (url) VALUES (?)", (val,))
+    db.commit()
+    row_id = c.lastrowid
+    c.close()                   
+                               
+    return {"success" : True, "id" : row_id}         
+
+@route('/data/video/<item>')                                         
+def video_data(item):                                                
+    db = sqlite3.connect('./dress.db')                               
+    c = db.cursor()                                                  
+    c.execute("SELECT * FROM videos WHERE id > ?", (item,))          
+    rows = c.fetchall()                                              
+    rows_list = []                                                   
+                                                                     
+    c.close()                                                        
+                                                                     
+    if rows:                                                         
+        for row in rows:                                             
+            t = (row[0], row[1])                                             
+            rows_list.append(t)                                              
+        return {"success" : True, "data" : rows_list}                        
+    else:                                                                    
+        return {"success" : False, "error" : "No data."}             
 
 @route('/static/:path#.+#', name='static')
 def static(path):
@@ -184,4 +213,4 @@ def images(path):
 def videos(path):
     return static_file(path, root='videos')
 
-run(host='192.168.42.1', port=80)
+run(host='192.168.42.1', port=80, server='cherrypy')
