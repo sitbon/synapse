@@ -1,32 +1,24 @@
-import sys, threading
-from time import sleep
+import sys
+import threading
+from multiprocessing import Process, Value
+from time import sleep, time
 from edi2c import ads1x15
 from edi2c import pca9685 
 
 
 FREQUENCY = 180
-MAX_VALUE = 1000
+MAX_VALUE = 700
 
-#MAP = [1, 4, 5, 0, 3, 2, 6, 7, 10, 13, 8, 9, 11, 12, 14, 15]
-MAP = [0, 1, 2, 3]
+MAP = [6, 7, 4, 8, 5, 3, 10, 1, 9, 2, 11, 0]
 
 LEVELS = [
-    [0],
-    [1],
-    [2],
-    [3],
+    [0, 4],
+    [1, 2],
+    [3, 5],
+    [6, 7],
+    [8, 9],
+    [10, 11],
 ]
-
-#LEVELS = [
-#    [0],
-#    [1, 2],
-#    [3, 4, 5],
-#    [6, 7],
-#    [8, 9],
-#    [10, 11, 12, 13]
-#]
-
-#adc = ads1x15.ADS1X15(ic=ads1x15.IC_ADS1115)
 
 class ProgramBuilder:
     program = None
@@ -254,7 +246,7 @@ class MindwaveLights(Lights):
         step = min(steps, max(0, int(round(steps * on))))
         
         if self.debug:
-            print "LIGHTS:", str(round(on * 100)) + "%", program[step:step+1]
+            print "LIGHTS:", str(round(on * 100)) + "%"
             
         self.run_program(self.program_on[:step+1] + self.program_off[step+1:])
 
@@ -311,7 +303,7 @@ class HeartrateLights(Lights):
     
     def _run(self):
         while self._running:
-            self.run_program(self.program)
+            self.run_program(self.program, debug=False)
     
     def set_bpm(self, bpm):
         if bpm <= 0:
@@ -319,3 +311,120 @@ class HeartrateLights(Lights):
         
         self.bpm = bpm
         self.start()
+
+
+class SynapseLights(Lights):
+    def __init__(self, *args, **kwargs):
+        Lights.__init__(self, *args, **kwargs)
+        self._running = False
+        self.heart = 60
+        self.mind = 0
+        self.space = -1
+        self.space_enable = False
+        self.task = None
+
+    def start(self):
+        if not self._running:
+            self.reset()
+            self._running = True
+            self.task = threading.Thread(target=self._run)
+            self.task.setDaemon(True)
+            self.task.start()
+
+    def stop(self):
+        self._running = False
+
+    def join(self, timeout=None):
+        if not self._running:
+            return False
+
+        self.task.join(timeout)
+        return self.task is None or not self.task.isAlive()
+
+    def set_intensity(self, channel, intensity):
+        self.pwm.set_off(MAP[channel], int(intensity * MAX_VALUE))
+
+    def set_heart(self, heart):
+        self.heart = heart
+
+    def set_mind(self, mind):
+        self.mind = mind
+        
+    def set_space(self, space):
+        self.space = space
+
+    def set_space_enable(self, space_enable):
+        self.space_enable = space_enable
+
+    def _run(self):
+        from math import sin, cos, pi, log
+
+        SPACE_INTENSITY_MAP = [1, .4, .2, 0]
+        SPACE_RATE_MAP = [124, 78, 60, 0]
+
+        LEN_LEVELS = len(LEVELS)
+        ENUMERATED_LEVELS = tuple((level, level / float(LEN_LEVELS), channels) for (level, channels) in enumerate(LEVELS))
+        INTENSITY_LEVEL_MIN = 1.0 / LEN_LEVELS
+
+        start = time()
+        now = start
+        delta = 0
+        elapsed = 0
+        mind_intensity = 0
+        intensity_level = 0
+        intensity = 0
+
+        #imap = lambda x: (1 + sin((x - 0.25) * 2 * pi)) / 2
+        #imap = lambda x: abs(sin(2 * pi * x))
+        imap = lambda x: (2 + sin(4 * pi * x) - cos(2 * pi * x)) / 4.
+
+        try:
+            while self._running:
+                delta = time() - now
+                now += delta
+                elapsed = now - start
+
+                space_enable = self.space_enable
+                space = self.space
+
+                try: space_enable = space_enable.value
+                except: pass
+
+                try: space = space.value
+                except: pass
+
+                if space_enable and 0 <= space <= 3:
+                    for level, level_scaled, channels in ENUMERATED_LEVELS:
+                        for channel in channels:
+                            intensity = SPACE_INTENSITY_MAP[space]
+                            intensity *= imap(elapsed * (SPACE_RATE_MAP[space] / 60.0) - (0.05 * log(1 + level)))
+                            self.set_intensity(channel, intensity)
+                            sleep(0)
+                else:
+                    mind = self.mind
+                    heart = self.heart
+
+                    try: mind = mind.value
+                    except: pass
+
+                    try: heart = heart.value
+                    except: pass
+
+                    mind_intensity = min(1.0, max(0.0, float(mind - 50) / (90.0 - 50.0)))
+                    amplitude_ramp = max(0.0, 0.15 * (mind_intensity - 0.75) / (1 - 0.75))
+
+                    for level, level_scaled, channels in ENUMERATED_LEVELS:
+                        intensity_level = min(1.0, max(0.0, mind_intensity - level_scaled))
+
+                        if level == 0:
+                            intensity_level = 1
+
+                        for channel in channels:
+                            intensity = imap(elapsed * (heart / 60.0) - (0.05 * log(1 + level))) * intensity_level
+                            intensity = amplitude_ramp + (1 - amplitude_ramp) * intensity
+                            self.set_intensity(channel, intensity)
+                            sleep(0)
+
+        finally:
+            self._running = False
+            self.reset()

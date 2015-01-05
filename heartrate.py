@@ -3,6 +3,7 @@ import subprocess
 from time import sleep
 from multiprocessing import Process
 from nbstreamreader import NonBlockingStreamReader
+import atexit
 
 #MAC_ADDRESS = 'DD:FB:8B:5B:7F:28'
 MAC_ADDRESS = 'D4:48:C2:4C:A0:19'
@@ -25,7 +26,16 @@ class HeartBeat():
                                                stdin = subprocess.PIPE, 
                                                stdout = subprocess.PIPE, 
                                                stderr = subprocess.PIPE, shell = False)
-       
+
+        def cleanup():
+            if self.gatttool_subprocess is not None:
+                try:
+                    self.gatttool_subprocess.terminate()
+                except:
+                    pass
+
+        atexit.register(cleanup)
+
         # wait for process to come up
         for x in range (0, 10):
             if self.gatttool_subprocess.poll() is None:

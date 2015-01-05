@@ -1,10 +1,10 @@
 """Provide proximity measurements.
 """
 import sys
-from time import time
-import threading
+from time import time, sleep
+from threading import Thread
 from multiprocessing import Process
-from time import sleep
+
 from edi2c import ads1x15
 
 
@@ -32,10 +32,8 @@ class Proximity:
         if len(channels) > 2:
             raise ValueError, "Proximity: only two channels are supported"
 
-
     def is_valid_distance(self, distance):
         return distance >= Proximity.VALID_DISTANCE[0] and distance <= Proximity.VALID_DISTANCE[1] 
-
 
     def _maybe_warn(self, message):
         now = time()
@@ -45,9 +43,8 @@ class Proximity:
             return False
         
         self._last_warning = now
-        print >> sys.stderr, message
+        #print >> sys.stderr, message
         return True
-
 
     def read_once(self):
         """Take a single reading from the channels.
@@ -59,7 +56,6 @@ class Proximity:
             result.append(int(round(value)))
         
         return result
-
 
     def read(self, filter_length=10, rejection_threshold_cm=30):
         """Take median filtered readings.
@@ -111,6 +107,9 @@ class Proxemic(Proximity):
     PUBLIC = 3
     RANGE = [45, 120, 280, 720]
     
+    last_space_distance = 0
+    last_space = -1
+    
     def __init__(self, *args, **kwargs):
         Proximity.__init__(self, *args, **kwargs)
 
@@ -123,28 +122,38 @@ class Proxemic(Proximity):
             
         return len(Proxemic.RANGE) - 1, distance
 
-
-    def _monitor_space_thread(self, callback, distance_callback):
+    def _monitor_space_thread(self, callback, distance_callback, interrupt_callback):
+        current_distance = -1
         current_space = None
         current_space_time = 0
 
-        while True:
-            sleep(0.100)
-            space, distance = self.get_space_distance()
-            now = time()
+        try:
+            while True:
+                sleep(0)
+                space, distance = self.get_space_distance()
+                now = time()
 
-            distance_callback(distance)
-
-            if space != current_space:
-                if now - current_space_time > 1.33:
-                    current_space = space
-                    current_space_time = now
-                    if not callback(current_space):
+                if distance != current_distance:
+                    current_distance = distance
+                    if not distance_callback(current_distance):
                         return
 
+                if space != current_space:
+                    if now - current_space_time > 1.33 and abs(distance - self.last_space_distance) > 25:
+                        current_space = space
+                        current_space_time = now
+                        self.last_space_distance = distance
 
-    def monitor_space(self, callback, distance_callback):
-        monitor_thread = Process(target=self._monitor_space_thread, args=(callback,distance_callback))
+                        if not callback(current_space):
+                            return
+
+        except KeyboardInterrupt:
+            if callable(interrupt_callback):
+                interrupt_callback()
+
+    def monitor_space(self, callback, distance_callback, interrupt_callback=None):
+        monitor_thread = Thread(target=self._monitor_space_thread, args=(callback, distance_callback, interrupt_callback))
+        monitor_thread.setDaemon(True)
         monitor_thread.start()
 
 
@@ -152,31 +161,21 @@ def main(args):
     channels = map(int, args) or Proximity.DEFAULT_CHANNELS
     pr = Proxemic(channels)
 
-    tsy = teensy.Teensy()
-    
-    color_map = [ [255, 0, 0], [255, 255, 0], [0, 0, 255], [0, 0, 0] ]
-    #function_map = [ tsy.set_intimate, tsy.set_personal, tsy.set_social, lambda x: tsy.set_off ]
-    #do_function = lambda x: function_map[x]([255, 255, 180])
-
     current_color = None
     current_space = None
     current_space_time = 0
+    last_space_distance = 0
     
     while True:
         space, distance = pr.get_space_distance(10, 30)
         now = time()
 
         if space != current_space:
-            if now - current_space_time > 1.33:
+            if now - current_space_time > 1.33 and abs(distance - last_space_distance) > 25:
                 current_space = space
                 current_space_time = now
-                #do_function(current_space)
+                last_space_distance = distance
 
-                color = color_map[current_space]
-                
-                if color != current_color:
-                    current_color = color
-                    tsy.set_intimate(color)
 
         print int(round(distance)), "\t", current_space, " "*70, "\r",
         sys.stdout.flush()

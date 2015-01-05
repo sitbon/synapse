@@ -3,6 +3,7 @@ import time
 import requests
 from multiprocessing import Process, Value 
 import subprocess
+import signal
 
 import attention
 import heartrate
@@ -12,82 +13,90 @@ import button
 import camera
 
 DATA_URL = "http://192.168.42.1/data/"
-ENABLE_PUBLISH = True 
+ENABLE_PUBLISH = False
 
 class Synapse:
-    HEARTRATE = 0    
-    ATTENTION = 1 
+    STATE_HEART_MIND = 0
+    STATE_PROXIMITY = 1
+    STATES = [STATE_HEART_MIND, STATE_PROXIMITY]
 
     def __init__(self):
         self.attention = attention.Attention()
         self.heartrate = heartrate.HeartBeat()
         self.proximity = proximity.Proxemic()
         self.button = button.Button()
-        
-        self.lights = lights.Lights()
-        self.lights_heartrate = lights.HeartrateLights()
-        self.lights_mindwave = lights.MindwaveLights()
-        self.lights_proximity = lights.ProximityLights()
-        
-        self.animation = Value('d',self.ATTENTION, lock=True) 
-        self.previous_animation = Value('d',self.ATTENTION, lock=True)
 
-        self.attention_value = Value('d', 0, lock=True)
-        self.heartrate_value = Value('d', 0, lock=True)
-        self.lights_process = Process(target=self._animate_lights)
-       
-        self.copying_files = Value('b', False, lock=True) 
+        self.state_value = Value('i', Synapse.STATES[0])
+        self.attention_value = Value('d', 0)
+        self.heartrate_value = Value('i', 60)
+        self.proximity_space_value = Value('i', -1)
+        self.proximity_value = Value('d', 0)
+
+        self.lights = lights.SynapseLights()
+        self.lights.set_heart(self.heartrate_value)
+        self.lights.set_mind(self.attention_value)
+        self.lights.set_space(self.proximity_space_value)
+        self.lights.set_space_enable(self.state_value)
+
+        self.copying_files = Value('b', False)
         self.camera_process = Process(target=self.handle_camera)
 
-    def _switch_animation_listener(self):
-        if self.animation.value == self.ATTENTION:
-            self.previous_animation.value = self.ATTENTION
-            self.animation.value = self.HEARTRATE 
-        else:
-            self.previous_animation.value = self.HEARTRATE
-            self.animation.value = self.ATTENTION 
-        return True
-
-    # note sure the best way to do this
-    # maybe a callback but if they press the button and the sensor
-    # is toggled we don't want to wait too long to repaint animation 
-    # because they may think the button didn't work and will push it again
-    def _animate_lights(self): 
-        while True:
-            time.sleep(1)
-            try:
-                if self.animation.value == self.ATTENTION:
-                    if self.previous_animation.value == self.HEARTRATE:
-                        self.lights_heartrate.stop()
-                    self.lights_mindwave.set_mindwave(self.attention_value.value)
-                else:
-                    self.lights_heartrate.set_bpm(self.heartrate_value.value)
-            except: 
-                pass
-
     def start(self):
-        self.button.monitor_button(self._switch_animation_listener)
-        self.lights.reset()
+        self.button.monitor_button(self.on_button)
+        self.proximity.monitor_space(self.update_proximity_space, self.update_proximity)
+
         self.heartrate.monitor_heartrate(self.update_heartrate)
         self.attention.monitor_attention(self.update_attention)
-        self.proximity.monitor_space(lambda x: True, self.update_proximity)
-        self.lights_process.start()
         self.camera_process.start()
 
+        self.lights.reset()
+        self.lights.start()
+
+    def stop(self):
+        self.lights.stop()
+
+    def join(self):
+        try:
+            while True:
+                if self.lights.join(0.500):
+                    break
+        except KeyboardInterrupt:
+            self.on_interrupt()
+
+    def on_interrupt(self):
+        print >>sys.stderr, "\nInterrupt caught"
+        self.stop()
+        sys.exit(0)
+
+    def on_button(self):
+        self.state_value.value = Synapse.STATES[(self.state_value.value + 1) % len(Synapse.STATES)]
+        print >>sys.stderr, "BUTTON: state=" + str(self.state_value.value)
+        return True
+
     def update_heartrate(self, value):
-        print >>sys.stderr, "EKG:", value
-        self.publish_value(self.heartrate, value)        
+        if self.state_value.value == Synapse.STATE_HEART_MIND:
+            print >>sys.stderr, "EKG:", value
         self.heartrate_value.value = value
+        self.publish_value(self.heartrate, value)
         return True
 
     def update_attention(self, value):
-        print >>sys.stderr, "Attention:", value
-        self.publish_value(self.attention, value)
+        if self.state_value.value == Synapse.STATE_HEART_MIND:
+            print >>sys.stderr, "Attention:", value
         self.attention_value.value = value
+        self.publish_value(self.attention, value)
         return True
-       
+
+    def update_proximity_space(self, value):
+        if self.state_value.value == Synapse.STATE_PROXIMITY:
+            print >>sys.stderr, "SPACE:", value
+        self.proximity_space_value.value = value
+        return True
+
     def update_proximity(self, value):
-        print >>sys.stderr, "PRX:", value
+        if self.state_value.value == Synapse.STATE_PROXIMITY:
+            print >>sys.stderr, "PRX:", value
+        self.proximity_value.value = value
         self.publish_value(self.proximity, value)
         return True
         
@@ -164,9 +173,7 @@ class Synapse:
 def main(args):
     synapse = Synapse()
     synapse.start()
-    
-    while True:
-        pass
+    synapse.join()
 
 if __name__ == '__main__':
     main(sys.argv[1:])
