@@ -30,7 +30,7 @@ class HeartBeat():
         def cleanup():
             if self.gatttool_subprocess is not None:
                 try:
-                    self.gatttool_subprocess.terminate()
+                    self.gatttool_subprocess.kill()
                 except:
                     pass
 
