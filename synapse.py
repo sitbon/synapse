@@ -130,6 +130,7 @@ class Synapse:
     def handle_camera(self):
         recording = False 
         while True:
+            time.sleep(0.5)
             if self.attention_value.value >= 80:
                 if not recording:
                     camera.take_picture()
