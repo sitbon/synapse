@@ -5,8 +5,8 @@ from multiprocessing import Process
 from nbstreamreader import NonBlockingStreamReader
 import atexit
 
-#MAC_ADDRESS = 'DD:FB:8B:5B:7F:28'
-MAC_ADDRESS = 'D4:48:C2:4C:A0:19'
+MAC_ADDRESS = 'DD:FB:8B:5B:7F:28'
+#MAC_ADDRESS = 'D4:48:C2:4C:A0:19'
 
 class HeartBeat():
     current_value = None
@@ -22,7 +22,7 @@ class HeartBeat():
         Process(target=self._start_reading, args=(callback,)).start()
 
     def _start_reading(self, callback):
-        self.gatttool_subprocess = subprocess.Popen(['./gatttool', '-t', 'random', '-b', MAC_ADDRESS, '-I'],
+        self.gatttool_subprocess = subprocess.Popen(['/home/root/synapse/gatttool', '-t', 'random', '-b', MAC_ADDRESS, '-I'],
                                                stdin = subprocess.PIPE, 
                                                stdout = subprocess.PIPE, 
                                                stderr = subprocess.PIPE, shell = False)

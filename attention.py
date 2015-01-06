@@ -18,6 +18,7 @@ class Attention():
                             if not callback(current_value):
                                 return
             except:
+                sleep(5)
                 pass
 
 

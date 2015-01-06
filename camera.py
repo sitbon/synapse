@@ -2,7 +2,7 @@ import requests
 import re
 from time import sleep
 
-IP = '192.168.42.21'
+IP = '192.168.42.22'
 GET_VIDEO_FILE = 'fd_get_latest_media_file_2&type=0'
 GET_PHOTO_FILE = 'fd_get_latest_media_file&type=1'
 LIST_ALL_FILES = 'fd_list_files&0'

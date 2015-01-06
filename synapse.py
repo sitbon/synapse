@@ -156,7 +156,7 @@ class Synapse:
        if len(files) > 0:
           for file in files:
               print 'copying latest pictures & videos to web server'
-              child = subprocess.Popen(['wget', '-nc', file, '-P', 'web_server/images/'], 
+              child = subprocess.Popen(['wget', '-nc', file, '-P', '/home/root/synapse/web_server/images/'],
                                                                    stdout=subprocess.PIPE,
                                                                    stderr=subprocess.PIPE)
               streamdata = child.communicate()
@@ -165,7 +165,7 @@ class Synapse:
               print streamdata
               if 'already there' not in stderr:
                   print 'publishing!'
-                  value = file.replace('http://192.168.42.21/DCIM/100DRIFT/', '')
+                  value = file.replace('http://' + camera.IP + '/DCIM/100DRIFT/', '')
                   self.publish_value(camera, value)        
  
        self.copying_files.value = False 
